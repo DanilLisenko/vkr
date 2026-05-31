@@ -1,3 +1,4 @@
+import os
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -611,7 +612,6 @@ def delete_review(request, review_id):
     return redirect('movies:admin_dashboard')
 
 
-@login_required
 _SIM_MATRIX = None
 
 def _load_sim_matrix():
@@ -636,17 +636,62 @@ def _load_sim_matrix():
 def mindmap_page(request):
     """Интерактивная карта ИИ-связей между фильмами."""
     initial = Movie.objects.filter(
-        rating__gte=8.0,
+        rating__gte=7.0,
         poster_url__isnull=False,
-    ).exclude(poster_url='').order_by('?')[:12]
+    ).exclude(poster_url='').order_by('-rating')[:15]
     return render(request, 'movies/mindmap.html', {'initial_movies': initial})
 
 
+def mindmap_initial_api(request):
+    """AJAX: начальные фильмы для карты — только с русскими названиями."""
+    movies = Movie.objects.filter(
+        poster_url__isnull=False,
+        poster_url__startswith='http',
+        rating__gte=6.0,
+        title__regex=r'[а-яА-ЯёЁ]',
+    ).exclude(poster_url='').exclude(title='').order_by('-rating')[:60]
+    return JsonResponse({'movies': [
+        {
+            'id': m.id,
+            'title': m.title,
+            'rating': round(m.rating or 0, 1),
+            'poster_url': m.poster_url,
+            'year': m.release_date.year if m.release_date else '',
+        }
+        for m in movies
+    ]})
+
+
 def mindmap_similar_api(request, movie_id):
-    """AJAX: похожие фильмы из pkl-матрицы для карты."""
+    """AJAX: похожие фильмы — из pkl-матрицы если есть, иначе по жанрам."""
+    movie_id = int(movie_id)
     matrix = _load_sim_matrix()
-    sim_ids = matrix.get(int(movie_id), [])[:6]
-    movies = Movie.objects.filter(id__in=sim_ids, poster_url__isnull=False).exclude(poster_url='')
+    sim_ids = matrix.get(movie_id, [])[:8]
+
+    RU = {'poster_url__isnull': False, 'poster_url__startswith': 'http',
+          'title__regex': r'[а-яА-ЯёЁ]'}
+
+    if sim_ids:
+        movies = list(Movie.objects.filter(
+            id__in=sim_ids, **RU,
+        ).exclude(poster_url='')[:8])
+    else:
+        # Fallback: похожие по жанрам и рейтингу
+        source = Movie.objects.filter(id=movie_id).prefetch_related('genres').first()
+        if source:
+            genre_ids = list(source.genres.values_list('id', flat=True))
+            qs = Movie.objects.filter(rating__gte=6.0, **RU).exclude(
+                poster_url='').exclude(id=movie_id)
+            if genre_ids:
+                qs = qs.filter(genres__id__in=genre_ids).annotate(
+                    common=Count('genres', filter=Q(genres__id__in=genre_ids))
+                ).order_by('-common', '-rating')
+            else:
+                qs = qs.order_by('-rating')
+            movies = list(qs.distinct()[:8])
+        else:
+            movies = []
+
     return JsonResponse({'movies': [
         {
             'id': m.id,

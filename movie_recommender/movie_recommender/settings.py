@@ -109,6 +109,8 @@ STATICFILES_FINDERS = [
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+CSRF_FAILURE_VIEW = 'movie_recommender.views.csrf_failure'
+
 AUTH_USER_MODEL = 'users.CustomUser'
 
 LOGIN_URL = '/users/login/'

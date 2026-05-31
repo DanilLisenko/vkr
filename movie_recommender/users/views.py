@@ -12,7 +12,7 @@ from movies.models import Watchlist, Review, Genre, Movie
 
 class RegisterView(CreateView):
     form_class = CustomUserCreationForm
-    success_url = reverse_lazy('users:login')
+    success_url = reverse_lazy('users:profile')
     template_name = 'users/register.html'
 
     def get_context_data(self, **kwargs):
@@ -45,13 +45,13 @@ class RegisterView(CreateView):
 
     def form_valid(self, form):
         from django.contrib.auth import login
-        super().form_valid(form)          # создаём пользователя
-        user = self.object
+        from .models import FavoriteMovie
+
+        user = form.save()  # создаём пользователя напрямую
 
         # Сохраняем избранные фильмы
         movie_ids = self.request.POST.get('favorite_movies', '')
         if movie_ids:
-            from .models import FavoriteMovie
             for mid in movie_ids.split(','):
                 try:
                     movie = Movie.objects.get(id=int(mid.strip()))
@@ -60,8 +60,7 @@ class RegisterView(CreateView):
                     pass
 
         # Авто-логин и редирект в профиль
-        login(self.request, user)
-        from django.shortcuts import redirect
+        login(self.request, user, backend='django.contrib.auth.backends.ModelBackend')
         return redirect('users:profile')
 
 
@@ -133,23 +132,39 @@ class UserProfileView(DetailView):
 def similar_movies_api(request):
     """AJAX: похожие фильмы для шага выбора при регистрации."""
     movie_ids = request.GET.get('selected', '')
+    preferred_genre_ids_raw = request.GET.get('genres', '')
+    page = int(request.GET.get('page', 0))
     exclude_ids = []
     genre_ids = []
+
+    # Явно переданные жанры (из шага 2 регистрации) — наивысший приоритет
+    preferred_genre_ids = []
+    if preferred_genre_ids_raw:
+        try:
+            preferred_genre_ids = [int(x) for x in preferred_genre_ids_raw.split(',') if x.strip()]
+        except ValueError:
+            pass
 
     if movie_ids:
         try:
             exclude_ids = [int(x) for x in movie_ids.split(',') if x.strip()]
-            genre_ids = list(Movie.objects.filter(
+            # Добавляем жанры из лайкнутых фильмов к явным
+            movie_genre_ids = list(Movie.objects.filter(
                 id__in=exclude_ids
             ).values_list('genres__id', flat=True).distinct())
+            genre_ids = list(set(preferred_genre_ids + movie_genre_ids))
         except ValueError:
             pass
+    else:
+        genre_ids = preferred_genre_ids
 
     qs = Movie.objects.filter(
         poster_url__isnull=False,
-        rating__gte=7.0,
+        poster_url__startswith='http',
+        rating__gte=6.5,
         rating__lt=9.5,
-    ).exclude(poster_url='')
+        title__regex=r'[а-яА-ЯёЁ]',  # только фильмы с русскими названиями
+    ).exclude(poster_url='').exclude(title='')
 
     if genre_ids:
         qs = qs.filter(genres__id__in=genre_ids).annotate(
@@ -161,7 +176,8 @@ def similar_movies_api(request):
     if exclude_ids:
         qs = qs.exclude(id__in=exclude_ids)
 
-    movies = list(qs.distinct()[:12])
+    offset = page * 30
+    movies = list(qs.distinct()[offset:offset + 30])
     return JsonResponse({'movies': [
         {
             'id': m.id,

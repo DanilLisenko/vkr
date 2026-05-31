@@ -173,15 +173,41 @@
 .fp-card.selected .fp-heart i { color: #fff; transform: scale(1.25); }
 
 /* ─── Компасные анимации похожих карточек ───────────────── */
-@keyframes fromTop    { from{opacity:0;transform:translateY(-40px) scale(0.8)} to{opacity:1;transform:none} }
-@keyframes fromBottom { from{opacity:0;transform:translateY(40px) scale(0.8)}  to{opacity:1;transform:none} }
-@keyframes fromLeft   { from{opacity:0;transform:translateX(-40px) scale(0.8)} to{opacity:1;transform:none} }
-@keyframes fromRight  { from{opacity:0;transform:translateX(40px) scale(0.8)}  to{opacity:1;transform:none} }
+@keyframes fromTop {
+    0%   { opacity:0; transform:translateY(-60px) scale(0.7) rotateX(15deg); filter:blur(4px); }
+    60%  { opacity:1; filter:blur(0); }
+    80%  { transform:translateY(6px) scale(1.03); }
+    100% { transform:none; }
+}
+@keyframes fromBottom {
+    0%   { opacity:0; transform:translateY(60px) scale(0.7) rotateX(-15deg); filter:blur(4px); }
+    60%  { opacity:1; filter:blur(0); }
+    80%  { transform:translateY(-6px) scale(1.03); }
+    100% { transform:none; }
+}
+@keyframes fromLeft {
+    0%   { opacity:0; transform:translateX(-60px) scale(0.7) rotateY(15deg); filter:blur(4px); }
+    60%  { opacity:1; filter:blur(0); }
+    80%  { transform:translateX(6px) scale(1.03); }
+    100% { transform:none; }
+}
+@keyframes fromRight {
+    0%   { opacity:0; transform:translateX(60px) scale(0.7) rotateY(-15deg); filter:blur(4px); }
+    60%  { opacity:1; filter:blur(0); }
+    80%  { transform:translateX(-6px) scale(1.03); }
+    100% { transform:none; }
+}
 
-.fp-card.sim-top    { border-color:rgba(229,9,20,0.5); animation:fromTop    0.32s cubic-bezier(.34,1.4,.64,1) forwards; }
-.fp-card.sim-bottom { border-color:rgba(229,9,20,0.5); animation:fromBottom 0.32s cubic-bezier(.34,1.4,.64,1) forwards; }
-.fp-card.sim-left   { border-color:rgba(229,9,20,0.5); animation:fromLeft   0.32s cubic-bezier(.34,1.4,.64,1) forwards; }
-.fp-card.sim-right  { border-color:rgba(229,9,20,0.5); animation:fromRight  0.32s cubic-bezier(.34,1.4,.64,1) forwards; }
+.fp-card.sim-top    { animation:fromTop    0.55s cubic-bezier(.16,1.3,.5,1) both; }
+.fp-card.sim-bottom { animation:fromBottom 0.55s cubic-bezier(.16,1.3,.5,1) both; }
+.fp-card.sim-left   { animation:fromLeft   0.55s cubic-bezier(.16,1.3,.5,1) both; }
+.fp-card.sim-right  { animation:fromRight  0.55s cubic-bezier(.16,1.3,.5,1) both; }
+
+/* Небольшая задержка для каждой из 4 карточек — вылетают чуть поочерёдно */
+.fp-card.sim-top    { animation-delay: 0ms; }
+.fp-card.sim-right  { animation-delay: 60ms; }
+.fp-card.sim-bottom { animation-delay: 120ms; }
+.fp-card.sim-left   { animation-delay: 180ms; }
 
 /* Сдвиг соседних карточек при вставке */
 .fp-card.grid-shifting {
@@ -318,15 +344,7 @@
     </div>
 
     <div id="picker-grid">
-        {% for movie in popular_movies %}
-        <div class="fp-card" data-movie="{{ movie.id }}" data-poster="{{ movie.poster_url }}" data-title="{{ movie.title }}">
-            <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" loading="lazy"
-                 onerror="this.src='https://via.placeholder.com/300x450/1a1b22/555?text=?'">
-            <div class="fp-name">{{ movie.title }}</div>
-            <button type="button" class="fp-heart"><i class="fa-solid fa-heart"></i></button>
-        </div>
-        {% endfor %}
-        <div id="grid-loading"><i class="fa-solid fa-spinner fa-spin me-2"></i>Загружаем ещё...</div>
+        <div id="grid-loading"><i class="fa-solid fa-spinner fa-spin me-2"></i>Загружаем...</div>
         <div id="grid-sentinel"></div>
     </div>
 
@@ -348,9 +366,10 @@
 <script>
 const selectedMovies = new Set();
 const selectedGenres = new Set();
-const shownIds = new Set([{% for m in popular_movies %}{{ m.id }},{% endfor %}]);
+const shownIds = new Set();
 let lastPoster = '';
 let isLoadingMore = false;
+let pickerInitialized = false;
 const COLS = window.innerWidth > 900 ? 7 : window.innerWidth > 560 ? 5 : 3;
 
 /* ══════════ ШАГИ 1 / 2 ══════════════════════════════ */
@@ -365,11 +384,17 @@ function toggleGenre(el) {
     el.classList.toggle('selected');
     selectedGenres.has(id) ? selectedGenres.delete(id) : selectedGenres.add(id);
     document.getElementById('hidden-genres').value = [...selectedGenres].join(',');
+    /* Сбрасываем picker чтобы при повторном открытии перезагрузить с новыми жанрами */
+    pickerInitialized = false;
 }
 function openPicker() {
     document.getElementById('movie-picker').classList.add('active');
     document.querySelectorAll('.step-dot')[2].classList.add('active');
     document.body.style.overflow = 'hidden';
+    if (!pickerInitialized) {
+        initPickerGrid();
+        pickerInitialized = true;
+    }
 }
 function closePicker() {
     document.getElementById('movie-picker').classList.remove('active');
@@ -380,6 +405,25 @@ function closePicker() {
 function submitReg() {
     document.getElementById('hidden-movies').value = [...selectedMovies].join(',');
     document.getElementById('reg-form').submit();
+}
+
+/* ══════════ ПАРАМЕТРЫ ДЛЯ ВСЕХ ЗАПРОСОВ ═══════════ */
+function buildParams(extra) {
+    const params = new URLSearchParams(extra || {});
+    if (selectedGenres.size) params.set('genres', [...selectedGenres].join(','));
+    return params.toString();
+}
+
+/* ══════════ ИНИЦИАЛИЗАЦИЯ СЕТКИ (с жанрами) ═══════ */
+let infinitePage = 0;
+
+function initPickerGrid() {
+    const grid = document.getElementById('picker-grid');
+    /* Удаляем все ранее добавленные карточки, оставляем только системные элементы */
+    grid.querySelectorAll('.fp-card').forEach(c => c.remove());
+    shownIds.clear();
+    infinitePage = 0;
+    loadMoreMovies();
 }
 
 /* ══════════ НИЖНЯЯ ПАНЕЛЬ ══════════════════════════ */
@@ -409,7 +453,6 @@ function makeCard(movie) {
 }
 
 /* ══════════ КЛИК ПО КАРТОЧКЕ ═══════════════════════ */
-/* Используем делегирование — один обработчик на всю сетку */
 document.getElementById('picker-grid').addEventListener('click', function(e) {
     const heart = e.target.closest('.fp-heart');
     if (!heart) return;
@@ -422,16 +465,13 @@ document.getElementById('picker-grid').addEventListener('click', function(e) {
 function toggleCard(card) {
     const id = Number(card.dataset.movie);
     if (selectedMovies.has(id)) {
-        /* ── снимаем лайк ── */
         selectedMovies.delete(id);
         card.classList.remove('selected');
-        /* убираем ВСЕ карточки, вставленные из-за этой */
         document.querySelectorAll(`.fp-card[data-src="${id}"]`).forEach(c => {
             c.style.animation = 'pushIn 0.2s ease reverse forwards';
             setTimeout(() => c.remove(), 200);
         });
     } else {
-        /* ── ставим лайк ── */
         selectedMovies.add(id);
         card.classList.add('selected');
         lastPoster = card.dataset.poster || '';
@@ -443,7 +483,8 @@ function toggleCard(card) {
 
 /* ══════════ ВСТАВКА ПОХОЖИХ — КОМПАСОМ ════════════ */
 function insertSimilar(card, movieId) {
-    fetch('/users/api/similar-movies/?selected=' + movieId)
+    const params = buildParams({ selected: movieId });
+    fetch('/users/api/similar-movies/?' + params)
         .then(r => r.json())
         .then(data => {
             const grid  = document.getElementById('picker-grid');
@@ -456,68 +497,55 @@ function insertSimilar(card, movieId) {
             movies.forEach(m => shownIds.add(m.id));
             if (!movies.length) return;
 
-            /* Описание 4 позиций вставки с направлением анимации.
-               Каждая вставка выполняется относительно текущего DOM,
-               поэтому делаем их в порядке убывания индекса чтобы
-               более ранние вставки не сдвигали ориентиры. */
             const slots = [
-                /* TOP    — перед карточкой выше (idx - COLS) */
-                { targetIdx: idx - COLS,       cls: 'sim-top',    valid: idx >= COLS },
-                /* BOTTOM — перед карточкой ниже (idx + COLS) */
-                { targetIdx: idx + COLS,       cls: 'sim-bottom', valid: idx + COLS < cards.length },
-                /* LEFT   — перед карточкой слева */
-                { targetIdx: idx - 1,          cls: 'sim-left',   valid: col > 0 },
-                /* RIGHT  — после лайкнутой (перед следующей) */
-                { targetIdx: idx + 1,          cls: 'sim-right',  valid: col < COLS - 1 },
+                { targetIdx: idx - COLS, cls: 'sim-top',    valid: idx >= COLS },
+                { targetIdx: idx + COLS, cls: 'sim-bottom', valid: idx + COLS < cards.length },
+                { targetIdx: idx - 1,    cls: 'sim-left',   valid: col > 0 },
+                { targetIdx: idx + 1,    cls: 'sim-right',  valid: col < COLS - 1 },
             ].filter(s => s.valid);
 
-            /* Сортируем по убыванию индекса → вставки снизу вверх */
             slots.sort((a, b) => b.targetIdx - a.targetIdx);
 
             slots.forEach((slot, i) => {
                 const movie = movies[i];
                 if (!movie) return;
-
-                /* Переопределяем cards каждый раз т.к. DOM изменился */
                 const currentCards = [...grid.querySelectorAll('.fp-card')];
                 const target = currentCards[slot.targetIdx] || null;
-
                 const c = makeCard(movie);
                 c.classList.add(slot.cls);
                 c.dataset.src = movieId;
                 grid.insertBefore(c, target);
+                c.addEventListener('animationend', () => c.classList.remove(slot.cls), { once: true });
             });
         })
         .catch(() => {});
 }
 
 /* ══════════ БЕСКОНЕЧНЫЙ СКРОЛЛ ════════════════════ */
-let infinitePage = 1;
-
 function loadMoreMovies() {
     if (isLoadingMore) return;
     isLoadingMore = true;
     document.getElementById('grid-loading').style.display = 'block';
 
-    const ids = [...selectedMovies].join(',') || '0';
-    fetch(`/users/api/similar-movies/?selected=${ids}&page=${infinitePage}`)
+    const excludeIds = [...shownIds, ...selectedMovies].join(',') || '0';
+    const params = buildParams({ selected: excludeIds, page: infinitePage });
+    fetch('/users/api/similar-movies/?' + params)
         .then(r => r.json())
         .then(data => {
-            const grid = document.getElementById('picker-grid');
-            const sentinel = document.getElementById('grid-sentinel');
-            const loading  = document.getElementById('grid-loading');
+            const grid    = document.getElementById('picker-grid');
+            const loading = document.getElementById('grid-loading');
 
             const newMovies = (data.movies || []).filter(m => !shownIds.has(m.id));
             newMovies.forEach(m => {
                 shownIds.add(m.id);
                 const c = makeCard(m);
-                c.classList.remove('similar-card'); /* обычная карточка */
+                c.classList.remove('similar-card');
                 grid.insertBefore(c, loading);
             });
 
             loading.style.display = 'none';
             isLoadingMore = false;
-            infinitePage++;
+            if (newMovies.length > 0) infinitePage++;
         })
         .catch(() => {
             document.getElementById('grid-loading').style.display = 'none';
@@ -525,7 +553,7 @@ function loadMoreMovies() {
         });
 }
 
-/* IntersectionObserver на sentinel — загружает следующую страницу */
+/* IntersectionObserver на sentinel */
 document.addEventListener('DOMContentLoaded', function() {
     const sentinel = document.getElementById('grid-sentinel');
     if (!sentinel) return;

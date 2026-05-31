@@ -22,6 +22,7 @@ urlpatterns = [
     path('search_actors/', views.search_actors, name='search_actors'),
     path('mindmap/', views.mindmap_page, name='mindmap'),
     path('api/similar/<int:movie_id>/', views.mindmap_similar_api, name='mindmap_similar_api'),
+    path('api/initial/', views.mindmap_initial_api, name='mindmap_initial_api'),
 
     path('collections/<str:collection_type>/', views.collection_detail, name='collection_detail'),
 

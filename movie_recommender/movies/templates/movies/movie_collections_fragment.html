@@ -1,0 +1,44 @@
+{% if load_more == 'top' %}
+    <div class="row" id="top-movies">
+        {% for movie in top_movies %}
+            <div class="col-md-3 mb-3">
+                <div class="card shadow-sm">
+                    <img src="{{ movie.poster_url }}" class="card-img-top" alt="{{ movie.title }}">
+                    <div class="card-body">
+                        <h6 class="card-title">{{ movie.title }}</h6>
+                        <a href="{% url 'movies:movie_detail' movie.id %}" class="btn btn-sm btn-outline-secondary">Подробнее</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    {% if top_has_more %}
+        <button class="btn btn-primary mb-4" id="load-more-top" data-offset="{{ top_offset|add:10 }}" data-target="top-movies" data-load-more="top">Загрузить ещё</button>
+    {% endif %}
+{% endif %}
+
+{% for genre, data in genre_collections.items %}
+    {% if load_more == 'genre-'|add:forloop.counter %}
+        <div class="row genre-movies" id="genre-{{ forloop.counter }}">
+            {% for movie in data.movies %}
+                <div class="col-md-3 mb-3">
+                    <div class="card shadow-sm">
+                        <img src="{{ movie.poster_url }}" class="card-img-top" alt="{{ movie.title }}">
+                        <div class="card-body">
+                            <h6 class="card-title">{{ movie.title }}</h6>
+                            <a href="{% url 'movies:movie_detail' movie.id %}" class="btn btn-sm btn-outline-secondary">Подробнее</a>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        {% if data.has_more %}
+            <button class="btn btn-primary mb-4" id="load-more-genre-{{ forloop.counter }}" data-offset="{{ genre_offset|add:10 }}" data-target="genre-{{ forloop.counter }}" data-load-more="genre-{{ forloop.counter }}">Загрузить ещё</button>
+        {% endif %}
+    {% endif %}
+{% endfor %}
+
+<!-- Отладочная информация -->
+<div style="display:none;">
+    Debug: load_more = {{ load_more }}, top_movies count = {{ top_movies|length }}, genre_collections = {{ genre_collections|length }}
+</div>

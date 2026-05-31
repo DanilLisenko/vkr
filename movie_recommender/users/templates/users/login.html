@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Вход | MovieRecommender{% endblock %}
+
+{% block extra_css %}
+<style>
+    .auth-card {
+        background: var(--card-bg);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 16px;
+        padding: 40px;
+        max-width: 440px;
+        margin: 60px auto;
+    }
+    .auth-card .form-control {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.12);
+        color: var(--text-color);
+        border-radius: 10px;
+        padding: 12px 16px;
+    }
+    .auth-card .form-control:focus {
+        background: rgba(255,255,255,0.08);
+        border-color: var(--accent-color);
+        box-shadow: none;
+        color: var(--text-color);
+    }
+    .auth-card label { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 6px; }
+    .btn-auth {
+        background: var(--accent-color);
+        border: none;
+        border-radius: 10px;
+        padding: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        width: 100%;
+        color: #fff;
+        transition: background 0.2s, transform 0.2s;
+    }
+    .btn-auth:hover { background: #b80710; transform: translateY(-1px); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <div class="text-center mb-4">
+        <i class="fa-solid fa-circle-user" style="font-size:3rem;color:var(--accent-color);"></i>
+        <h2 class="fw-bold mt-3 mb-1">Вход в аккаунт</h2>
+        <p class="text-muted small">Войдите, чтобы получить рекомендации</p>
+    </div>
+
+    {% if form.errors %}
+    <div class="alert alert-danger py-2 px-3 mb-3" style="border-radius:10px;font-size:0.9rem;">
+        Неверное имя пользователя или пароль.
+    </div>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label>Имя пользователя</label>
+            <input type="text" name="username" class="form-control" placeholder="Введите логин" autofocus required>
+        </div>
+        <div class="mb-4">
+            <label>Пароль</label>
+            <input type="password" name="password" class="form-control" placeholder="Введите пароль" required>
+        </div>
+        <button type="submit" class="btn-auth">Войти</button>
+    </form>
+
+    <p class="text-center text-muted mt-4 mb-0" style="font-size:0.9rem;">
+        Нет аккаунта? <a href="{% url 'users:register' %}" class="text-white fw-bold">Зарегистрироваться</a>
+    </p>
+</div>
+{% endblock %}

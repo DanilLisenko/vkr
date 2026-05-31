@@ -1,0 +1,121 @@
+{% load static %}
+<!-- movies/templates/movies/navbar.html -->
+<nav class="navbar navbar-expand-lg sticky-navbar">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="{% url 'home' %}">
+            <img src="{% static 'images/logo1.png' %}" alt="Movie Recommender Logo" style="height: 90px; width: auto;">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'movies:actors_list' %}">Актеры</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'movies:movie_collections' %}">Подборки</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'movies:search_page' %}">Поиск</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'movies:recommend_movie' %}">Рекомендации</a>
+                </li>
+            </ul>
+            <form id="search-form" class="d-flex position-relative" action="{% url 'movies:search_page' %}" method="get">
+                <input id="search-input" class="form-control me-2" type="search" name="q" placeholder="Поиск..." aria-label="Search">
+                <button class="btn btn-outline-primary" type="submit">Найти</button>
+            </form>
+            <ul class="navbar-nav ms-3">
+                {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'users:profile' %}">{{ user.username }}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'users:logout' %}">Выйти</a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'users:login' %}">Войти</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'users:register' %}">Регистрация</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<style>
+    #search-form {
+        position: relative;
+    }
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #F1F8E9;
+        border: 1px solid #ccc;
+        z-index: 1000;
+        max-height: 300px;
+        overflow-y: auto;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+    }
+    .search-results.visible {
+        opacity: 1;
+        display: block !important; /* Гарантируем видимость */
+    }
+    .search-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #ccc;
+        transition: background-color 0.2s ease;
+    }
+    .search-item:hover {
+        background-color: #E8F5E9;
+    }
+    .search-item img {
+        width: 50px;
+        height: 50px;
+        margin-right: 10px;
+        object-fit: cover;
+    }
+    .search-item a {
+        text-decoration: none;
+        color: #333;
+        flex-grow: 1;
+        font-size: 1rem;
+    }
+    .search-item a:hover {
+        color: #28a745;
+    }
+    .search-error {
+        padding: 10px;
+        color: #d32f2f;
+        text-align: center;
+        font-size: 1rem;
+    }
+    .search-empty {
+        padding: 10px;
+        color: #666;
+        text-align: center;
+        font-size: 1rem;
+    }
+    /* Отключаем любые медиа-запросы, скрывающие результаты */
+    @media (min-width: 992px) {
+        .search-results {
+            display: block; /* Гарантируем видимость на ПК */
+            width: 100%;
+            min-width: 300px; /* Минимальная ширина для читаемости */
+        }
+        #search-form {
+            min-width: 300px; /* Убедимся, что форма не сжимается */
+        }
+    }
+</style>

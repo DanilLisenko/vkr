@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Избранное | MovieRecommender{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mini-movie-card {
+        background: var(--card-bg);
+        border-radius: 10px; overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.05);
+        flex-shrink: 0; width: 130px;
+        transition: transform 0.2s;
+    }
+    .mini-movie-card:hover { transform: translateY(-4px); }
+    .mini-movie-card img { width: 130px; height: 195px; object-fit: cover; }
+    .section-title {
+        font-size: 1.1rem; font-weight: 700; margin-bottom: 14px;
+        padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .scroll-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+    .scroll-row::-webkit-scrollbar { height: 4px; }
+    .scroll-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h1 class="fw-bold"><i class="fa-solid fa-bookmark text-primary me-2"></i>Избранное</h1>
+        <a href="{% url 'users:profile' %}" class="btn btn-outline-light btn-sm">← Профиль</a>
+    </div>
+
+    <div class="mb-5">
+        <div class="section-title"><i class="fa-solid fa-clock me-2 text-primary"></i>Буду смотреть</div>
+        {% if watchlist %}
+        <div class="scroll-row">
+            {% for item in watchlist %}
+            <a href="{% url 'movies:movie_detail' item.movie.id %}" class="mini-movie-card text-decoration-none">
+                <img src="{{ item.movie.poster_url|default:'https://via.placeholder.com/130x195/1a1b22/ffffff?text=?' }}" alt="{{ item.movie.title }}">
+                <div class="p-2">
+                    <div class="text-white" style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ item.movie.title }}</div>
+                    <div class="text-muted" style="font-size:0.75rem;">{{ item.movie.release_date|date:"Y" }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">Список пуст. <a href="{% url 'home' %}">Найти фильмы</a></p>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="section-title"><i class="fa-solid fa-eye me-2 text-success"></i>Просмотренные</div>
+        {% if watched %}
+        <div class="scroll-row">
+            {% for item in watched %}
+            <a href="{% url 'movies:movie_detail' item.movie.id %}" class="mini-movie-card text-decoration-none">
+                <img src="{{ item.movie.poster_url|default:'https://via.placeholder.com/130x195/1a1b22/ffffff?text=?' }}" alt="{{ item.movie.title }}">
+                <div class="p-2">
+                    <div class="text-white" style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ item.movie.title }}</div>
+                    <div class="text-muted" style="font-size:0.75rem;">{{ item.movie.release_date|date:"Y" }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">Вы ещё не отмечали фильмы как просмотренные.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

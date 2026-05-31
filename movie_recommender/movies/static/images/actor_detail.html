@@ -1,0 +1,119 @@
+<!-- movies/templates/movies/actor_detail.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'movies:movie_list' %}">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'movies:actors_list' %}">Актеры</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ actor.name }}</li>
+        </ol>
+    </nav>
+
+    <h1 data-aos="fade-right">{{ actor.name }}</h1>
+
+    <div class="row" data-aos="fade-up">
+        <div class="col-md-4">
+            {% if actor.photo_url %}
+                <img src="{{ actor.photo_url }}" class="img-fluid rounded" alt="{{ actor.name }}">
+            {% else %}
+                <p>Фото отсутствует</p>
+            {% endif %}
+        </div>
+
+        <div class="col-md-8">
+            {% if actor.birth_date %}
+                <p><strong>Дата рождения:</strong> {{ actor.birth_date|date:"d M Y" }}</p>
+            {% else %}
+                <p><strong>Дата рождения:</strong> Не указана</p>
+            {% endif %}
+
+            {% if actor.bio %}
+                <p><strong>Биография:</strong> {{ actor.bio }}</p>
+            {% else %}
+                <p><strong>Биография:</strong> Не указана</p>
+            {% endif %}
+
+{% if user.is_authenticated %}
+    <button class="btn btn-outline-primary toggle-favorite-actor" data-actor-id="{{ actor.id }}">
+        {% if is_favorite %}
+            Удалить из избранных
+        {% else %}
+            Добавить в избранные
+        {% endif %}
+    </button>
+{% endif %}
+        </div>
+    </div>
+
+    <h3 class="mt-4" data-aos="fade-right">Фильмы с участием {{ actor.name }}</h3>
+    {% if movies %}
+        <div class="row">
+            {% for movie in movies %}
+                <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="{{ forloop.counter|add:'100' }}">
+                    <div class="card h-100">
+                        <a href="{% url 'movies:movie_detail' movie.id %}">
+                            {% if movie.poster_url %}
+                                <img src="{{ movie.poster_url }}" class="card-img-top" alt="{{ movie.title }}">
+                            {% else %}
+                                <img src="https://placehold.co/200x300" class="card-img-top" alt="Нет постера">
+                            {% endif %}
+                        </a>
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <a href="{% url 'movies:movie_detail' movie.id %}">{{ movie.title }}</a>
+                            </h5>
+                            <p class="card-text">
+                                {% if movie.release_date %}
+                                    Дата выхода: {{ movie.release_date|date:"d M Y" }}
+                                {% else %}
+                                    Дата выхода: неизвестна
+                                {% endif %}
+                            </p>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <strong>Жанры:</strong>
+                                    {% for genre in movie.genres.all %}
+                                        {{ genre.name }}{% if not forloop.last %}, {% endif %}
+                                    {% empty %}
+                                        Не указаны
+                                    {% endfor %}
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>Фильмы не найдены.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        $('.toggle-favorite-actor').click(function() {
+            const actorId = $(this).data('actor-id');
+            const button = $(this);
+            $.ajax({
+                url: "{% url 'movies:toggle_favorite_actor' 0 %}".replace('0', actorId),
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+                success: function(data) {
+                    if (data.status === 'added') {
+                        button.text('Удалить из избранных');
+                    } else {
+                        button.text('Добавить в избранные');
+                    }
+                },
+                error: function() {
+                    alert('Ошибка! Пожалуйста, попробуйте снова.');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

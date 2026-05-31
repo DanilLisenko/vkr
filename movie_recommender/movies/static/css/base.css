@@ -1,0 +1,238 @@
+/* movies/static/css/base.css */
+.sticky-navbar {
+    position: fixed !important;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+    transition: transform 0.3s ease-in-out;
+}
+
+.sticky-navbar.hidden {
+    transform: translateY(-100%);
+}
+
+.sticky-navbar.visible {
+    transform: translateY(0);
+}
+
+body {
+    padding-top: 90px;
+}
+
+@media (max-width: 768px) {
+    .sticky-navbar {
+        max-height: 60px;
+    }
+    .sticky-navbar img {
+        height: 50px;
+    }
+    body {
+        padding-top: 60px;
+    }
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #F1F8E9;
+    border: 1px solid #ccc;
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: opacity 0.2s ease-in-out;
+    opacity: 0;
+}
+
+.search-results.visible {
+    opacity: 1;
+}
+
+.search-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+    transition: background-color 0.2s ease;
+}
+
+.search-item:hover {
+    background-color: #E8F5E9;
+}
+
+.search-item img {
+    width: 50px;
+    height: 50px;
+    margin-right: 10px;
+    object-fit: cover;
+}
+
+.search-item a {
+    text-decoration: none;
+    color: #333;
+    flex-grow: 1;
+    font-size: 1rem;
+}
+
+.search-item a:hover {
+    color: #28a745;
+}
+
+.search-error {
+    padding: 10px;
+    color: #d32f2f;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.search-empty {
+    padding: 10px;
+    color: #666;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.hero-section {
+    background-size: cover;
+    background-position: center;
+    height: 50vh;
+    max-width: 80%;
+    margin: 2rem auto;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+}
+
+.hero-button {
+    font-size: 1.5rem;
+    padding: 15px 30px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.movie-item {
+    display: block !important;
+    margin-bottom: 2rem;
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Остальные стили */
+.hero-section {
+    background-size: cover;
+    background-position: center;
+    height: 50vh;
+    max-width: 80%;
+    margin: 2rem auto;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+}
+
+.hero-button {
+    font-size: 1.5rem;
+    padding: 15px 30px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.movie-item {
+    display: block !important;
+    margin-bottom: 2rem;
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #F1F8E9;
+    border: 1px solid #ccc;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transition: opacity 0.2s ease-in-out;
+    opacity: 0;
+}
+
+.search-results.visible {
+    opacity: 1;
+}
+
+.search-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+    transition: background-color 0.2s ease;
+}
+
+.search-item:hover {
+    background-color: #E8F5E9;
+}
+
+.search-item img {
+    width: 50px;
+    height: 50px;
+    margin-right: 10px;
+    object-fit: cover;
+}
+
+.search-item a {
+    text-decoration: none;
+    color: #333;
+    flex-grow: 1;
+    font-size: 1rem;
+}
+
+.search-item a:hover {
+    color: #28a745;
+}
+
+.search-error {
+    padding: 10px;
+    color: #d32f2f;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.search-empty {
+    padding: 10px;
+    color: #666;
+    text-align: center;
+    font-size: 1rem;
+}
+
+.ratio-16x9 iframe {
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}

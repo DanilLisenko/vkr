@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block title %}Личный кабинет | MovieRecommender{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-card {
+        background: var(--card-bg);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 16px;
+        padding: 32px;
+    }
+    .avatar-circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(255,255,255,0.15);
+        background: #25262e;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        color: var(--text-muted);
+        overflow: hidden;
+    }
+    .stat-box {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+    }
+    .stat-box .number { font-size: 2rem; font-weight: 700; color: var(--accent-color); }
+    .stat-box .label { font-size: 0.85rem; color: var(--text-muted); }
+    .section-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .review-card {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    .mini-movie-card {
+        background: var(--card-bg);
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.05);
+        flex-shrink: 0;
+        width: 130px;
+        transition: transform 0.2s;
+    }
+    .mini-movie-card:hover { transform: translateY(-4px); }
+    .mini-movie-card img { width: 130px; height: 195px; object-fit: cover; }
+    .scroll-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+    .scroll-row::-webkit-scrollbar { height: 4px; }
+    .scroll-row::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+    .scroll-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+
+    <!-- Шапка профиля -->
+    <div class="profile-card mb-4">
+        <div class="d-flex align-items-center gap-4 flex-wrap">
+            <div class="avatar-circle">
+                {% if user.avatar %}
+                    <img src="{{ user.avatar.url }}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+                {% else %}
+                    <i class="fa-solid fa-user"></i>
+                {% endif %}
+            </div>
+            <div class="flex-grow-1">
+                <h2 class="fw-bold mb-1">{{ user.username }}</h2>
+                {% if user.get_full_name %}<div class="text-muted mb-1">{{ user.get_full_name }}</div>{% endif %}
+                {% if user.email %}<div class="text-muted small"><i class="fa-solid fa-envelope me-1"></i>{{ user.email }}</div>{% endif %}
+                {% if user.bio %}<div class="mt-2" style="max-width:500px;color:var(--text-muted);">{{ user.bio }}</div>{% endif %}
+            </div>
+            <div>
+                <a href="{% url 'users:edit_profile' %}" class="btn btn-outline-light btn-sm">
+                    <i class="fa-solid fa-pen me-1"></i> Редактировать
+                </a>
+                {% if user.is_staff %}
+                <a href="{% url 'movies:admin_dashboard' %}" class="btn btn-outline-danger btn-sm ms-2">
+                    <i class="fa-solid fa-shield me-1"></i> Панель админа
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stat-box">
+                <div class="number">{{ watched_count }}</div>
+                <div class="label">Просмотрено</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-box">
+                <div class="number">{{ watchlist_count }}</div>
+                <div class="label">В списке</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-box">
+                <div class="number">{{ reviews|length }}</div>
+                <div class="label">Отзывов</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-box">
+                <div class="number">{{ user.date_joined|date:"Y" }}</div>
+                <div class="label">На сайте с</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Список просмотра -->
+    {% if watchlist_movies %}
+    <div class="mb-4">
+        <div class="section-title"><i class="fa-solid fa-bookmark me-2 text-primary"></i>Буду смотреть</div>
+        <div class="scroll-row">
+            {% for item in watchlist_movies %}
+            <a href="{% url 'movies:movie_detail' item.movie.id %}" class="mini-movie-card text-decoration-none">
+                <img src="{{ item.movie.poster_url|default:'https://via.placeholder.com/130x195/1a1b22/ffffff?text=?' }}" alt="{{ item.movie.title }}">
+                <div class="p-2">
+                    <div class="text-white" style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ item.movie.title }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Просмотренные -->
+    {% if watched_movies %}
+    <div class="mb-4">
+        <div class="section-title"><i class="fa-solid fa-eye me-2 text-success"></i>Просмотренные</div>
+        <div class="scroll-row">
+            {% for item in watched_movies %}
+            <a href="{% url 'movies:movie_detail' item.movie.id %}" class="mini-movie-card text-decoration-none">
+                <img src="{{ item.movie.poster_url|default:'https://via.placeholder.com/130x195/1a1b22/ffffff?text=?' }}" alt="{{ item.movie.title }}">
+                <div class="p-2">
+                    <div class="text-white" style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ item.movie.title }}</div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Отзывы -->
+    <div class="mb-4">
+        <div class="section-title"><i class="fa-solid fa-star me-2 text-warning"></i>Мои отзывы</div>
+        {% if reviews %}
+            {% for review in reviews %}
+            <div class="review-card">
+                <div class="d-flex justify-content-between align-items-start">
+                    <a href="{% url 'movies:movie_detail' review.movie.id %}" class="fw-bold text-white text-decoration-none">{{ review.movie.title }}</a>
+                    <span class="badge bg-warning text-dark ms-2">
+                        <i class="fa-solid fa-star me-1"></i>{{ review.rating }}/10
+                    </span>
+                </div>
+                {% if review.review_text %}
+                <div class="text-muted mt-1" style="font-size:0.92rem;">{{ review.review_text }}</div>
+                {% endif %}
+                <div class="text-muted small mt-1">{{ review.created_at|date:"d.m.Y" }}</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted">Вы ещё не оставляли отзывов.</p>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

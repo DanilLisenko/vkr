@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+
+{% block title %}{{ person.name }} | MovieRecommender{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row g-5">
+        <div class="col-md-4">
+            {% if person.photo_url %}
+                <img src="{{ person.photo_url }}" class="img-fluid rounded-4 shadow-lg w-100" alt="{{ person.name }}" style="object-fit: cover; border: 1px solid rgba(255,255,255,0.1);">
+            {% else %}
+                <div class="rounded-4 bg-dark d-flex align-items-center justify-content-center shadow-lg w-100" style="aspect-ratio: 2/3; border: 1px solid rgba(255,255,255,0.1);">
+                    <i class="fa-solid fa-user text-muted" style="font-size: 5rem;"></i>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-8">
+            <h1 class="fw-bold mb-3" style="font-size: 3rem;">{{ person.name }}</h1>
+
+            <div class="mb-4">
+                <span class="badge bg-secondary bg-opacity-25 text-light fs-6 px-3 py-2 border border-secondary border-opacity-25 rounded-pill">
+                    <i class="fa-solid fa-calendar-day me-2"></i>
+                    {% if person.birth_date %}
+                        {{ person.birth_date|date:"d E Y" }}
+                    {% else %}
+                        Дата рождения неизвестна
+                    {% endif %}
+                </span>
+            </div>
+
+            <h4 class="fw-bold mb-3">Биография</h4>
+            <div class="text-muted lh-lg" style="font-size: 1.1rem;">
+                {% if person.bio %}
+                    {{ person.bio }}
+                {% else %}
+                    Биография пока не заполнена.
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <h3 class="fw-bold mt-5 mb-4 border-top border-secondary border-opacity-25 pt-4">
+        <i class="fa-solid fa-clapperboard me-2 text-warning"></i> Работы в кино
+    </h3>
+
+    {% if credits %}
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4">
+            {% for credit in credits %}
+            <div class="col">
+                <a href="{% url 'movies:movie_detail' credit.movie.id %}" class="text-decoration-none">
+                    <div class="movie-card">
+                        <div class="poster-wrapper">
+                            <img src="{{ credit.movie.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="movie-poster" alt="{{ credit.movie.title }}">
+                            <div class="rating-badge"><i class="fa-solid fa-star me-1 text-warning"></i>{{ credit.movie.rating|floatformat:1 }}</div>
+                        </div>
+                        <div class="movie-info pb-3">
+                            <div class="movie-title text-white">{{ credit.movie.title }}</div>
+                            <div class="movie-meta text-muted mb-2">{{ credit.movie.release_date|date:"Y" }}</div>
+                            <div class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25 w-100 py-2">
+                                {{ credit.role|translate_role }}
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted fs-5">Работы не найдены.</p>
+    {% endif %}
+</div>
+{% endblock %}

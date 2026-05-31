@@ -1,0 +1,540 @@
+{% extends 'base.html' %}
+
+{% block title %}Регистрация | MovieRecommender{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ═══════════════════════════════════════════════════════════
+   ШАГИ 1 И 2 — КАРТОЧКА
+═══════════════════════════════════════════════════════════ */
+.auth-card {
+    background: var(--card-bg);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 40px;
+    max-width: 520px;
+    margin: 40px auto;
+}
+.auth-card label { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 6px; display: block; }
+.btn-auth {
+    background: var(--accent-color);
+    border: none; border-radius: 10px;
+    padding: 12px; font-weight: 600;
+    font-size: 1rem; width: 100%; color: #fff;
+    cursor: pointer; transition: background 0.2s;
+}
+.btn-auth:hover { background: #b80710; }
+.step { display: none; }
+.step.active { display: block; }
+.step-indicator { display: flex; gap: 8px; justify-content: center; margin-bottom: 28px; }
+.step-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(255,255,255,0.15); transition: background 0.3s; }
+.step-dot.active { background: var(--accent-color); }
+.genre-chip {
+    display: inline-block; padding: 8px 18px; border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.15); color: var(--text-muted);
+    cursor: pointer; margin: 4px; font-size: 0.9rem; transition: all 0.2s; user-select: none;
+}
+.genre-chip:hover { border-color: var(--accent-color); color: #fff; }
+.genre-chip.selected { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+.errorlist { list-style: none; padding: 0; margin: 4px 0 0; color: #ff6b6b; font-size: 0.85rem; }
+
+/* Инпуты — перебиваем Bootstrap */
+.auth-card input, .auth-card .form-control, .auth-card textarea {
+    color: var(--text-color) !important;
+    background-color: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 10px !important;
+    padding: 12px 16px !important;
+    caret-color: var(--accent-color);
+    width: 100%; box-sizing: border-box;
+}
+.auth-card input::placeholder { color: var(--text-muted) !important; }
+.auth-card input:focus, .auth-card .form-control:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px rgba(229,9,20,0.18) !important;
+    outline: none;
+    background-color: rgba(255,255,255,0.08) !important;
+}
+[data-theme="light"] .auth-card input,
+[data-theme="light"] .auth-card .form-control {
+    color: #1a1b22 !important;
+    background-color: #fff !important;
+    border-color: rgba(0,0,0,0.15) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ШАГ 3 — ПОЛНОЭКРАННЫЙ ОВЕРЛЕЙ
+═══════════════════════════════════════════════════════════ */
+#movie-picker {
+    display: none;
+    position: fixed; inset: 0;
+    background: #0a0a0a;
+    z-index: 9999;
+    flex-direction: column;
+    overflow: hidden;
+}
+#movie-picker.active { display: flex; }
+
+/* Заголовок */
+.picker-header {
+    padding: 16px 20px 12px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.picker-header h4 { margin: 0 0 2px; font-size: 1.2rem; font-weight: 700; color: #fff; }
+.picker-header p  { margin: 0; font-size: 0.82rem; color: #666; }
+
+/* ─── СЕТКА — 7 колонок, совсем маленькие карточки ──── */
+#picker-grid {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 6px 5px 110px;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: calc((100vw / 7) * 1.5);
+    gap: 4px;
+    align-content: start;
+}
+#picker-grid::-webkit-scrollbar { width: 3px; }
+#picker-grid::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+@media (max-width: 900px) {
+    #picker-grid { grid-template-columns: repeat(5, 1fr); grid-auto-rows: calc(20vw * 1.5); }
+}
+@media (max-width: 560px) {
+    #picker-grid { grid-template-columns: repeat(3, 1fr); grid-auto-rows: calc(33vw * 1.5); }
+}
+
+/* ─── КАРТОЧКА ФИЛЬМА ──────────────────────────────────── */
+.fp-card {
+    position: relative;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1a1a1a;
+    -webkit-tap-highlight-color: transparent;
+    border: 2px solid transparent;
+    transition: border-color 0.2s, transform 0.15s;
+}
+.fp-card:hover { transform: scale(1.04); z-index: 2; }
+.fp-card.selected { border-color: var(--accent-color); }
+
+.fp-card > img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.35s;
+}
+.fp-card:hover > img { transform: scale(1.08); }
+
+.fp-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, transparent 40%, rgba(0,0,0,0.85) 100%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.fp-card .fp-name {
+    position: absolute;
+    bottom: 24px; left: 0; right: 0;
+    z-index: 2;
+    text-align: center;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: #fff;
+    padding: 0 4px;
+    line-height: 1.25;
+    text-shadow: 0 1px 4px #000;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.fp-card .fp-heart {
+    position: absolute;
+    bottom: 5px; left: 50%;
+    transform: translateX(-50%);
+    z-index: 3;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.7);
+    border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+.fp-card .fp-heart i { font-size: 0.65rem; color: rgba(255,255,255,0.45); transition: all 0.2s; }
+.fp-card.selected .fp-heart { background: var(--accent-color); }
+.fp-card.selected .fp-heart i { color: #fff; transform: scale(1.25); }
+
+/* ─── Компасные анимации похожих карточек ───────────────── */
+@keyframes fromTop    { from{opacity:0;transform:translateY(-40px) scale(0.8)} to{opacity:1;transform:none} }
+@keyframes fromBottom { from{opacity:0;transform:translateY(40px) scale(0.8)}  to{opacity:1;transform:none} }
+@keyframes fromLeft   { from{opacity:0;transform:translateX(-40px) scale(0.8)} to{opacity:1;transform:none} }
+@keyframes fromRight  { from{opacity:0;transform:translateX(40px) scale(0.8)}  to{opacity:1;transform:none} }
+
+.fp-card.sim-top    { border-color:rgba(229,9,20,0.5); animation:fromTop    0.32s cubic-bezier(.34,1.4,.64,1) forwards; }
+.fp-card.sim-bottom { border-color:rgba(229,9,20,0.5); animation:fromBottom 0.32s cubic-bezier(.34,1.4,.64,1) forwards; }
+.fp-card.sim-left   { border-color:rgba(229,9,20,0.5); animation:fromLeft   0.32s cubic-bezier(.34,1.4,.64,1) forwards; }
+.fp-card.sim-right  { border-color:rgba(229,9,20,0.5); animation:fromRight  0.32s cubic-bezier(.34,1.4,.64,1) forwards; }
+
+/* Сдвиг соседних карточек при вставке */
+.fp-card.grid-shifting {
+    transition: transform 0.3s ease;
+}
+
+/* Индикатор загрузки снизу */
+#grid-loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 20px;
+    color: #444;
+    font-size: 0.82rem;
+    display: none;
+}
+#grid-sentinel { grid-column: 1 / -1; height: 1px; }
+
+/* ─── НИЖНЯЯ ПАНЕЛЬ ─────────────────────────────────────── */
+.picker-bottom {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(10,10,10,0.97);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid #1e1e1e;
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+    z-index: 10000;
+}
+.picker-thumb {
+    width: 42px; height: 42px; border-radius: 8px;
+    overflow: hidden; flex-shrink: 0; background: #222;
+}
+.picker-thumb img { width: 100%; height: 100%; object-fit: cover; display: none; }
+.picker-info { flex: 1; min-width: 0; }
+.picker-info .cnt { font-size: 0.92rem; font-weight: 700; color: #fff; }
+.picker-info .hint { font-size: 0.72rem; color: #555; }
+.btn-picker-back {
+    background: #1e1e1e; border: 1px solid #333;
+    border-radius: 20px; color: #fff; font-size: 0.85rem;
+    font-weight: 600; padding: 8px 18px; cursor: pointer;
+    flex-shrink: 0; transition: background 0.2s;
+}
+.btn-picker-back:hover { background: #2a2a2a; }
+.btn-picker-save {
+    background: var(--accent-color); border: none;
+    border-radius: 20px; color: #fff; font-size: 0.85rem;
+    font-weight: 700; padding: 8px 22px; cursor: pointer;
+    flex-shrink: 0; display: none;
+    transition: background 0.2s, transform 0.15s;
+}
+.btn-picker-save:hover { background: #b80710; }
+.btn-picker-save.show { display: block; }
+.btn-picker-save:active { transform: scale(0.95); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ═══════════════════════════════════════════════════════
+     ШАГИ 1 И 2 — стандартная карточка
+════════════════════════════════════════════════════════ -->
+<div class="auth-card" id="auth-card">
+    <div class="text-center mb-2">
+        <h2 class="fw-bold mb-1">Создать аккаунт</h2>
+        <p class="text-muted small">Зарегистрируйтесь для персональных рекомендаций</p>
+    </div>
+    <div class="step-indicator">
+        <div class="step-dot active" id="dot-1"></div>
+        <div class="step-dot" id="dot-2"></div>
+        <div class="step-dot" id="dot-3"></div>
+    </div>
+
+    <form method="post" id="reg-form">
+        {% csrf_token %}
+        <input type="hidden" name="favorite_genres" id="hidden-genres">
+        <input type="hidden" name="favorite_movies" id="hidden-movies">
+
+        <!-- ── Шаг 1 ── -->
+        <div class="step active" id="step-1">
+            <h5 class="fw-bold mb-3">Шаг 1 из 3 — Данные аккаунта</h5>
+            <div class="mb-3">
+                <label>Имя пользователя *</label>
+                {{ form.username }}
+                {% if form.username.errors %}<ul class="errorlist">{% for e in form.username.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <div class="mb-3"><label>Email</label>{{ form.email }}</div>
+            <div class="mb-3"><label>Дата рождения</label>{{ form.birth_date }}</div>
+            <div class="mb-3">
+                <label>Пароль *</label>{{ form.password1 }}
+                {% if form.password1.errors %}<ul class="errorlist">{% for e in form.password1.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            <div class="mb-4">
+                <label>Повторите пароль *</label>{{ form.password2 }}
+                {% if form.password2.errors %}<ul class="errorlist">{% for e in form.password2.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+            </div>
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger py-2 px-3 mb-3" style="border-radius:10px;font-size:.9rem;">
+                {% for e in form.non_field_errors %}{{ e }}{% endfor %}
+            </div>
+            {% endif %}
+            <button type="button" class="btn-auth" onclick="goStep(2)">Далее →</button>
+        </div>
+
+        <!-- ── Шаг 2 ── -->
+        <div class="step" id="step-2">
+            <h5 class="fw-bold mb-1">Шаг 2 из 3 — Любимые жанры</h5>
+            <p class="text-muted small mb-3">Выберите жанры, которые вам нравятся</p>
+            <div class="mb-4">
+                {% for genre in genres %}
+                <span class="genre-chip" data-genre="{{ genre.id }}" onclick="toggleGenre(this)">{{ genre.name }}</span>
+                {% endfor %}
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary w-50" onclick="goStep(1)">← Назад</button>
+                <button type="button" class="btn-auth w-50" onclick="openPicker()">Далее →</button>
+            </div>
+        </div>
+
+        <!-- Шаг 3 — невидимый (submit через JS) -->
+        <div class="step" id="step-3" style="display:none!important;"></div>
+    </form>
+
+    <p class="text-center text-muted mt-4 mb-0" style="font-size:.9rem;">
+        Уже есть аккаунт? <a href="{% url 'users:login' %}" style="color:#fff;font-weight:600;">Войти</a>
+    </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     ШАГ 3 — ВЫБОР ФИЛЬМОВ (полный экран)
+════════════════════════════════════════════════════════ -->
+<div id="movie-picker">
+    <div class="picker-header">
+        <h4>Фильмы, которые вам нравятся</h4>
+        <p>Нажмите ♥ — рядом появятся 4 похожих. Выберите минимум 3.</p>
+    </div>
+
+    <div id="picker-grid">
+        {% for movie in popular_movies %}
+        <div class="fp-card" data-movie="{{ movie.id }}" data-poster="{{ movie.poster_url }}" data-title="{{ movie.title }}">
+            <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" loading="lazy"
+                 onerror="this.src='https://via.placeholder.com/300x450/1a1b22/555?text=?'">
+            <div class="fp-name">{{ movie.title }}</div>
+            <button type="button" class="fp-heart"><i class="fa-solid fa-heart"></i></button>
+        </div>
+        {% endfor %}
+        <div id="grid-loading"><i class="fa-solid fa-spinner fa-spin me-2"></i>Загружаем ещё...</div>
+        <div id="grid-sentinel"></div>
+    </div>
+
+    <div class="picker-bottom">
+        <div class="picker-thumb" id="picker-thumb">
+            <img id="picker-thumb-img" src="" alt="">
+        </div>
+        <div class="picker-info">
+            <div class="cnt" id="picker-cnt">Выбрано 0 фильмов</div>
+            <div class="hint">Выберите хотя бы 3</div>
+        </div>
+        <button type="button" class="btn-picker-back" onclick="closePicker()">Назад</button>
+        <button type="button" class="btn-picker-save" id="btn-save" onclick="submitReg()">Завершить</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const selectedMovies = new Set();
+const selectedGenres = new Set();
+const shownIds = new Set([{% for m in popular_movies %}{{ m.id }},{% endfor %}]);
+let lastPoster = '';
+let isLoadingMore = false;
+const COLS = window.innerWidth > 900 ? 7 : window.innerWidth > 560 ? 5 : 3;
+
+/* ══════════ ШАГИ 1 / 2 ══════════════════════════════ */
+function goStep(n) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('step-' + n);
+    if (el) el.classList.add('active');
+    document.querySelectorAll('.step-dot').forEach((d, i) => d.classList.toggle('active', i < n));
+}
+function toggleGenre(el) {
+    const id = el.dataset.genre;
+    el.classList.toggle('selected');
+    selectedGenres.has(id) ? selectedGenres.delete(id) : selectedGenres.add(id);
+    document.getElementById('hidden-genres').value = [...selectedGenres].join(',');
+}
+function openPicker() {
+    document.getElementById('movie-picker').classList.add('active');
+    document.querySelectorAll('.step-dot')[2].classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+function closePicker() {
+    document.getElementById('movie-picker').classList.remove('active');
+    document.body.style.overflow = '';
+    goStep(2);
+    document.querySelectorAll('.step-dot')[2].classList.remove('active');
+}
+function submitReg() {
+    document.getElementById('hidden-movies').value = [...selectedMovies].join(',');
+    document.getElementById('reg-form').submit();
+}
+
+/* ══════════ НИЖНЯЯ ПАНЕЛЬ ══════════════════════════ */
+function updateBar() {
+    const n = selectedMovies.size;
+    const s = n === 1 ? '' : n >= 2 && n <= 4 ? 'а' : 'ов';
+    document.getElementById('picker-cnt').textContent = `Выбрано ${n} фильм${s}`;
+    document.getElementById('btn-save').classList.toggle('show', n >= 3);
+    const img = document.getElementById('picker-thumb-img');
+    if (lastPoster && n > 0) { img.src = lastPoster; img.style.display = 'block'; }
+    else img.style.display = 'none';
+}
+
+/* ══════════ СОЗДАНИЕ КАРТОЧКИ ══════════════════════ */
+function makeCard(movie) {
+    const d = document.createElement('div');
+    d.className = 'fp-card similar-card';
+    d.dataset.movie  = movie.id;
+    d.dataset.poster = movie.poster_url || '';
+    d.dataset.title  = movie.title;
+    d.innerHTML =
+        `<img src="${movie.poster_url||''}" alt="" loading="lazy"
+              onerror="this.src='https://via.placeholder.com/300x450/1a1b22/555?text=?'">
+         <div class="fp-name">${movie.title}</div>
+         <button type="button" class="fp-heart"><i class="fa-solid fa-heart"></i></button>`;
+    return d;
+}
+
+/* ══════════ КЛИК ПО КАРТОЧКЕ ═══════════════════════ */
+/* Используем делегирование — один обработчик на всю сетку */
+document.getElementById('picker-grid').addEventListener('click', function(e) {
+    const heart = e.target.closest('.fp-heart');
+    if (!heart) return;
+    e.stopPropagation();
+    const card = heart.closest('.fp-card');
+    if (!card) return;
+    toggleCard(card);
+});
+
+function toggleCard(card) {
+    const id = Number(card.dataset.movie);
+    if (selectedMovies.has(id)) {
+        /* ── снимаем лайк ── */
+        selectedMovies.delete(id);
+        card.classList.remove('selected');
+        /* убираем ВСЕ карточки, вставленные из-за этой */
+        document.querySelectorAll(`.fp-card[data-src="${id}"]`).forEach(c => {
+            c.style.animation = 'pushIn 0.2s ease reverse forwards';
+            setTimeout(() => c.remove(), 200);
+        });
+    } else {
+        /* ── ставим лайк ── */
+        selectedMovies.add(id);
+        card.classList.add('selected');
+        lastPoster = card.dataset.poster || '';
+        insertSimilar(card, id);
+    }
+    document.getElementById('hidden-movies').value = [...selectedMovies].join(',');
+    updateBar();
+}
+
+/* ══════════ ВСТАВКА ПОХОЖИХ — КОМПАСОМ ════════════ */
+function insertSimilar(card, movieId) {
+    fetch('/users/api/similar-movies/?selected=' + movieId)
+        .then(r => r.json())
+        .then(data => {
+            const grid  = document.getElementById('picker-grid');
+            const cards = [...grid.querySelectorAll('.fp-card')];
+            const idx   = cards.indexOf(card);
+            if (idx < 0) return;
+
+            const col = idx % COLS;
+            const movies = data.movies.filter(m => !shownIds.has(m.id)).slice(0, 4);
+            movies.forEach(m => shownIds.add(m.id));
+            if (!movies.length) return;
+
+            /* Описание 4 позиций вставки с направлением анимации.
+               Каждая вставка выполняется относительно текущего DOM,
+               поэтому делаем их в порядке убывания индекса чтобы
+               более ранние вставки не сдвигали ориентиры. */
+            const slots = [
+                /* TOP    — перед карточкой выше (idx - COLS) */
+                { targetIdx: idx - COLS,       cls: 'sim-top',    valid: idx >= COLS },
+                /* BOTTOM — перед карточкой ниже (idx + COLS) */
+                { targetIdx: idx + COLS,       cls: 'sim-bottom', valid: idx + COLS < cards.length },
+                /* LEFT   — перед карточкой слева */
+                { targetIdx: idx - 1,          cls: 'sim-left',   valid: col > 0 },
+                /* RIGHT  — после лайкнутой (перед следующей) */
+                { targetIdx: idx + 1,          cls: 'sim-right',  valid: col < COLS - 1 },
+            ].filter(s => s.valid);
+
+            /* Сортируем по убыванию индекса → вставки снизу вверх */
+            slots.sort((a, b) => b.targetIdx - a.targetIdx);
+
+            slots.forEach((slot, i) => {
+                const movie = movies[i];
+                if (!movie) return;
+
+                /* Переопределяем cards каждый раз т.к. DOM изменился */
+                const currentCards = [...grid.querySelectorAll('.fp-card')];
+                const target = currentCards[slot.targetIdx] || null;
+
+                const c = makeCard(movie);
+                c.classList.add(slot.cls);
+                c.dataset.src = movieId;
+                grid.insertBefore(c, target);
+            });
+        })
+        .catch(() => {});
+}
+
+/* ══════════ БЕСКОНЕЧНЫЙ СКРОЛЛ ════════════════════ */
+let infinitePage = 1;
+
+function loadMoreMovies() {
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+    document.getElementById('grid-loading').style.display = 'block';
+
+    const ids = [...selectedMovies].join(',') || '0';
+    fetch(`/users/api/similar-movies/?selected=${ids}&page=${infinitePage}`)
+        .then(r => r.json())
+        .then(data => {
+            const grid = document.getElementById('picker-grid');
+            const sentinel = document.getElementById('grid-sentinel');
+            const loading  = document.getElementById('grid-loading');
+
+            const newMovies = (data.movies || []).filter(m => !shownIds.has(m.id));
+            newMovies.forEach(m => {
+                shownIds.add(m.id);
+                const c = makeCard(m);
+                c.classList.remove('similar-card'); /* обычная карточка */
+                grid.insertBefore(c, loading);
+            });
+
+            loading.style.display = 'none';
+            isLoadingMore = false;
+            infinitePage++;
+        })
+        .catch(() => {
+            document.getElementById('grid-loading').style.display = 'none';
+            isLoadingMore = false;
+        });
+}
+
+/* IntersectionObserver на sentinel — загружает следующую страницу */
+document.addEventListener('DOMContentLoaded', function() {
+    const sentinel = document.getElementById('grid-sentinel');
+    if (!sentinel) return;
+    const obs = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting) loadMoreMovies();
+    }, { rootMargin: '200px' });
+    obs.observe(sentinel);
+});
+
+{% if form.errors %}goStep(1);{% endif %}
+</script>
+{% endblock %}

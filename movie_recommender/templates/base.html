@@ -1,0 +1,531 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Movie Recommender{% endblock %}</title>
+    <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');</script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-color: #0f1014;
+            --card-bg: #1a1b22;
+            --accent-color: #e50914;
+            --text-color: #f5f5f7;
+            --text-muted: #86868b;
+            --nav-bg: rgba(15, 16, 20, 0.85);
+            --border-color: rgba(255, 255, 255, 0.07);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --input-border: rgba(255, 255, 255, 0.12);
+            --footer-bg: #0a0a0d;
+            --footer-border: rgba(255, 255, 255, 0.03);
+            --dropdown-bg: #1a1b22;
+        }
+
+        [data-theme="light"] {
+            --bg-color: #f4f5f7;
+            --card-bg: #ffffff;
+            --text-color: #1a1b22;
+            --text-muted: #6b7280;
+            --nav-bg: rgba(255, 255, 255, 0.9);
+            --border-color: rgba(0, 0, 0, 0.08);
+            --input-bg: rgba(0, 0, 0, 0.04);
+            --input-border: rgba(0, 0, 0, 0.15);
+            --footer-bg: #e8eaed;
+            --footer-border: rgba(0, 0, 0, 0.08);
+            --dropdown-bg: #ffffff;
+        }
+
+        /* Плавный переход при смене темы */
+        *, *::before, *::after {
+            transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Перебиваем Bootstrap — text-muted всегда через нашу переменную */
+        .text-muted { color: var(--text-muted) !important; }
+        p, span, div, li, td, th, label { color: inherit; }
+
+        /* Навигация с размытием (Glassmorphism) */
+        .navbar {
+            background: var(--nav-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        [data-theme="light"] .navbar-toggler .fa-bars { color: #1a1b22 !important; }
+        [data-theme="light"] .navbar-brand { color: #1a1b22 !important; }
+        [data-theme="light"] .nav-link { color: #1a1b22 !important; }
+        [data-theme="light"] .nav-link:hover { color: var(--accent-color) !important; }
+        [data-theme="light"] .btn-outline-light { color: #1a1b22; border-color: rgba(0,0,0,0.2); }
+        [data-theme="light"] .btn-outline-light:hover { background: #1a1b22; color: #fff; }
+        [data-theme="light"] #search-input { background: rgba(0,0,0,0.05) !important; color: #1a1b22 !important; border-color: rgba(0,0,0,0.2) !important; }
+        [data-theme="light"] .btn-outline-light.dropdown-toggle { color: #1a1b22; border-color: rgba(0,0,0,0.2); }
+        [data-theme="light"] .dropdown-menu { background: #fff; border: 1px solid rgba(0,0,0,0.1); }
+        [data-theme="light"] .dropdown-item { color: #1a1b22; }
+        [data-theme="light"] .dropdown-item:hover { background: rgba(0,0,0,0.06); }
+        [data-theme="light"] .dropdown-divider { border-color: rgba(0,0,0,0.1); }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            letter-spacing: -0.5px;
+            color: #fff !important;
+        }
+        .navbar-brand span { color: var(--accent-color); }
+
+        /* Кнопка переключения темы */
+        #theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            color: var(--text-color);
+            font-size: 0.95rem;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        #theme-toggle:hover { border-color: var(--accent-color); color: var(--accent-color); }
+
+        .nav-link {
+            color: var(--text-color) !important;
+            font-weight: 500;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+        .nav-link:hover { opacity: 1; color: var(--accent-color) !important; }
+
+        /* Темная тема для живого поиска */
+        #search-form { position: relative; }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            z-index: 1000;
+            max-height: 350px;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease-in-out;
+            margin-top: 10px;
+        }
+        .search-results.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .search-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background-color 0.2s ease;
+        }
+        .search-item:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .search-item img {
+            width: 45px;
+            height: 65px;
+            margin-right: 15px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .search-item a {
+            text-decoration: none;
+            color: var(--text-color);
+            flex-grow: 1;
+            font-weight: 500;
+        }
+        .search-item a:hover { color: var(--accent-color); }
+
+        /* Hero Секция */
+        .hero-section {
+            background: linear-gradient(rgba(15, 16, 20, 0.6), var(--bg-color)),
+                        url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1925&auto=format&fit=crop') center/cover no-repeat;
+            padding: 140px 0 80px 0;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .hero-title { font-size: 3.5rem; font-weight: 800; margin-bottom: 20px; }
+        .hero-subtitle { color: var(--text-muted); font-size: 1.25rem; max-width: 600px; margin: 0 auto 40px auto; }
+
+        .btn-primary { background-color: var(--accent-color); border: none; font-weight: 600; border-radius: 8px; }
+        .btn-primary:hover { background-color: #b80710; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(229, 9, 20, 0.3); }
+
+        /* Карточки фильмов */
+        .movie-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.3s ease;
+            height: 100%;
+            position: relative;
+        }
+        .movie-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+        }
+        [data-theme="light"] .movie-card { background-color: #fff; border-color: rgba(0,0,0,0.06); }
+        [data-theme="light"] .movie-card:hover { border-color: rgba(0,0,0,0.15); box-shadow: 0 12px 30px rgba(0,0,0,0.12); }
+
+        .poster-wrapper { position: relative; aspect-ratio: 2/3; overflow: hidden; background-color: #25262e; }
+        [data-theme="light"] .poster-wrapper { background-color: #e8eaed; }
+        .movie-poster { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s ease; }
+        .movie-card:hover .movie-poster { transform: scale(1.06); }
+
+        .rating-badge {
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(5px);
+            padding: 4px 8px; border-radius: 6px; font-weight: 700; font-size: 0.9rem;
+            color: #ff9500; border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .movie-info { padding: 16px; }
+        .movie-title { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: white; }
+        [data-theme="light"] .movie-title { color: #1a1b22; }
+        .movie-meta { font-size: 0.85rem; color: var(--text-muted); }
+
+        /* Жанры */
+        .genre-badge {
+            background-color: #1e2026; color: var(--text-color); padding: 8px 16px;
+            border-radius: 20px; text-decoration: none; font-size: 0.9rem; font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.05); display: inline-block; margin: 4px; transition: 0.2s;
+        }
+        [data-theme="light"] .genre-badge { background-color: #fff; border-color: rgba(0,0,0,0.1); color: #1a1b22; }
+        .genre-badge:hover { background-color: var(--text-color); color: var(--bg-color); }
+
+        footer { margin-top: auto; background-color: var(--footer-bg); border-top: 1px solid var(--footer-border); padding: 30px 0; color: var(--text-muted); }
+
+        /* Светлая тема: Bootstrap-классы с жёсткими цветами */
+        [data-theme="light"] .text-white { color: #1a1b22 !important; }
+        [data-theme="light"] .text-light { color: #374151 !important; }
+        [data-theme="light"] .bg-dark { background-color: #e8eaed !important; }
+        [data-theme="light"] .text-muted { color: #6b7280 !important; }
+        [data-theme="light"] .border-secondary { border-color: rgba(0,0,0,0.15) !important; }
+        [data-theme="light"] .breadcrumb-item a { color: #6b7280; }
+        [data-theme="light"] .breadcrumb-item.active { color: #1a1b22; }
+
+        /* Светлая тема: карточки с var(--card-bg) */
+        [data-theme="light"] .profile-card,
+        [data-theme="light"] .auth-card,
+        [data-theme="light"] .edit-card,
+        [data-theme="light"] .detail-card,
+        [data-theme="light"] .admin-table,
+        [data-theme="light"] .stat-box,
+        [data-theme="light"] .admin-stat,
+        [data-theme="light"] .review-card,
+        [data-theme="light"] .review-item,
+        [data-theme="light"] .review-form-card,
+        [data-theme="light"] .mini-movie-card,
+        [data-theme="light"] .actor-card,
+        [data-theme="light"] .coll-card,
+        [data-theme="light"] .person-card,
+        [data-theme="light"] .genre-chip,
+        [data-theme="light"] .scroll-row,
+        [data-theme="light"] .collections-scroll { color: #1a1b22; }
+
+        [data-theme="light"] .actor-card { background-color: #fff; border: 1px solid rgba(0,0,0,0.07); }
+        [data-theme="light"] .section-title { border-color: rgba(0,0,0,0.08); color: #1a1b22; }
+        [data-theme="light"] .section-hdr { border-color: rgba(0,0,0,0.08); color: #1a1b22; }
+        [data-theme="light"] h1, [data-theme="light"] h2, [data-theme="light"] h3,
+        [data-theme="light"] h4, [data-theme="light"] h5, [data-theme="light"] h6 { color: #1a1b22; }
+        [data-theme="light"] p { color: #374151; }
+        [data-theme="light"] .fw-bold { color: #1a1b22; }
+        [data-theme="light"] .tab-nav .nav-link { color: #6b7280; }
+        [data-theme="light"] .tab-nav .nav-link.active { color: #1a1b22; }
+        [data-theme="light"] .admin-table table { color: #1a1b22; }
+        [data-theme="light"] .admin-table thead th { color: #6b7280; background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.07); }
+        [data-theme="light"] .admin-table tbody td { border-color: rgba(0,0,0,0.05); }
+        [data-theme="light"] .admin-table tbody tr:hover { background: rgba(0,0,0,0.02); }
+        [data-theme="light"] .genre-chip { background: #e8eaed; border-color: rgba(0,0,0,0.1); color: #374151; }
+        [data-theme="light"] .genre-chip.selected { background: var(--accent-color); color: #fff; }
+        [data-theme="light"] .movie-pick-item .movie-name { color: #fff; }
+        [data-theme="light"] .hero-title,
+        [data-theme="light"] .hero-subtitle { color: #f5f5f7; }
+
+        /* Поисковые подсказки — светлая тема */
+        [data-theme="light"] .search-results { background: #fff; border-color: rgba(0,0,0,0.1); }
+        [data-theme="light"] .search-item { border-color: rgba(0,0,0,0.05); }
+        [data-theme="light"] .search-item:hover { background-color: rgba(0,0,0,0.04); }
+        [data-theme="light"] .search-item a { color: #1a1b22; }
+
+        /* Скрываем лишние фильмы для кнопки Load More */
+        .movie-item:nth-child(n+5) { display: none; }
+        .movie-item { display: block; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center" href="{% url 'home' %}">
+                {% if request.resolver_match.url_name == 'home' %}
+                    <img src="{% static 'images/logo1.PNG' %}" alt="Logo" style="height: 45px; margin-right: 10px; border-radius: 8px;" onerror="this.style.display='none'">
+                {% endif %}
+                Movie<span>Recommender</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <i class="fa-solid fa-bars text-white fs-4"></i>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4">
+                    <li class="nav-item"><a class="nav-link" href="{% url 'movies:actors_list' %}"><i class="fa-solid fa-user-group me-1"></i> Актеры</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'movies:movie_collections' %}"><i class="fa-solid fa-compass me-1"></i> Подборки</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'movies:recommend_movie' %}"><i class="fa-solid fa-wand-magic-sparkles me-1"></i> ИИ Рекомендации</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'movies:mindmap' %}"><i class="fa-solid fa-circle-nodes me-1"></i> Карта фильмов</a></li>
+                </ul>
+
+                <button id="theme-toggle" title="Переключить тему" class="me-3">
+                    <i class="fa-solid fa-moon" id="theme-icon"></i>
+                </button>
+
+                <form id="search-form" class="d-flex position-relative me-3" action="{% url 'movies:search_page' %}" method="get">
+                    <input id="search-input" class="form-control bg-dark text-white border-secondary" type="search" name="q" placeholder="Поиск фильма или актера..." autocomplete="off" style="min-width: 280px;">
+                    <button class="btn btn-outline-light ms-2" type="submit"><i class="fa-solid fa-search"></i></button>
+                </form>
+
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                        <div class="dropdown">
+                            <a class="btn btn-outline-light btn-sm dropdown-toggle d-flex align-items-center gap-2 mt-1" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="fa-solid fa-circle-user fs-5"></i> {{ user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark bg-dark">
+                                <li><a class="dropdown-item" href="{% url 'users:profile' %}">Профиль</a></li>
+                                <li><a class="dropdown-item" href="{% url 'users:saved_movies' %}">Избранное</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="post" action="{% url 'users:logout' %}" class="m-0 p-0">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item text-danger border-0 bg-transparent w-100 text-start">Выйти</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </div>
+                    {% else %}
+                        <li class="nav-item"><a class="nav-link" href="{% url 'users:login' %}">Войти</a></li>
+                        <li class="nav-item ms-2"><a class="btn btn-primary btn-sm mt-1" href="{% url 'users:register' %}">Регистрация</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    {% if request.resolver_match.url_name == 'home' %}
+        <section class="hero-section">
+            <div class="container">
+                <h1 class="hero-title">Персональный подбор фильмов</h1>
+                <p class="hero-subtitle">Интеллектуальная система на базе глубоких нейросетей подберет идеальное кино под ваше настроение.</p>
+                <a href="{% url 'movies:recommend_movie' %}" class="btn btn-primary btn-lg px-5 py-3"><i class="fa-solid fa-brain me-2"></i> Подобрать фильм</a>
+            </div>
+        </section>
+
+        <section class="container mt-5 mb-5">
+            <h2 class="fw-bold mb-4">
+                <i class="fa-solid fa-fire text-warning me-2"></i>
+                Новинки
+                {% if recent_days %}
+                    <span class="text-muted fs-6 fw-normal ms-2">за {{ recent_days }} дней</span>
+                {% endif %}
+            </h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4">
+                {% for movie in recent_movies %}
+                <div class="col">
+                    <a href="{% url 'movies:movie_detail' movie.id %}" class="text-decoration-none">
+                        <div class="movie-card">
+                            <div class="poster-wrapper">
+                                <img src="{{ movie.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="movie-poster" alt="{{ movie.title }}">
+                                <div class="rating-badge"><i class="fa-solid fa-star me-1"></i>{{ movie.rating|floatformat:1 }}</div>
+                            </div>
+                            <div class="movie-info">
+                                <div class="movie-title">{{ movie.title }}</div>
+                                <div class="movie-meta d-flex justify-content-between">
+                                    <span>{{ movie.release_date|date:"Y" }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% empty %}
+                <div class="col-12 text-center py-5">
+                    <p class="text-muted fs-5">Нет новых фильмов за последние 30 дней</p>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        {% if popular_movies %}
+        <section class="container mb-5">
+            <h2 class="fw-bold mb-4"><i class="fa-solid fa-trophy text-warning me-2"></i> Популярные фильмы</h2>
+            <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4">
+                {% for movie in popular_movies %}
+                <div class="col">
+                    <a href="{% url 'movies:movie_detail' movie.id %}" class="text-decoration-none">
+                        <div class="movie-card">
+                            <div class="poster-wrapper">
+                                <img src="{{ movie.poster_url }}" class="movie-poster" alt="{{ movie.title }}"
+                                     onerror="this.src='https://via.placeholder.com/500x750/1a1b22/ffffff?text=?'">
+                                <div class="rating-badge"><i class="fa-solid fa-star me-1"></i>{{ movie.rating|floatformat:1 }}</div>
+                            </div>
+                            <div class="movie-info">
+                                <div class="movie-title">{{ movie.title }}</div>
+                                <div class="movie-meta">{{ movie.release_date|date:"Y" }}</div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="container mb-5 pb-5 border-top border-secondary border-opacity-25 pt-4">
+            <h4 class="fw-bold mb-3"><i class="fa-solid fa-tags me-2 text-muted"></i> Популярные жанры</h4>
+            <div class="d-flex flex-wrap">
+                {% for genre in genres %}
+                    <a href="{% url 'movies:movie_collections' %}?genre={{ genre.name }}" class="genre-badge">{{ genre.name }}</a>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    <div class="flex-grow-1">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <footer class="text-center">
+        <div class="container">
+            <p class="mb-2">&copy; 2026 MovieRecommender. Дипломный проект.</p>
+            <p class="text-muted small">Разработано с использованием Django, PostgreSQL и Нейронных сетей.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Кнопка загрузить еще
+            document.querySelectorAll(".load-more").forEach(button => {
+                button.addEventListener("click", function() {
+                    let type = this.dataset.type;
+                    let shownCount = parseInt(this.dataset.shown) || 0;
+                    let items = type === 'top' ? document.querySelectorAll("#top-movies .movie-item") : document.querySelectorAll("#" + this.dataset.genre + " .movie-item");
+
+                    let newShownCount = shownCount + 4;
+                    Array.from(items).slice(shownCount, newShownCount).forEach(item => item.style.display = "block");
+                    this.dataset.shown = newShownCount;
+                    if (newShownCount >= items.length) this.style.display = "none";
+                });
+            });
+
+            // Живой AJAX поиск
+            const searchInput = document.getElementById('search-input');
+            const searchForm = document.getElementById('search-form');
+
+            let resultsContainer = document.createElement('div');
+            resultsContainer.className = 'search-results';
+            searchForm.appendChild(resultsContainer);
+
+            let timeoutId;
+            function performSearch() {
+                clearTimeout(timeoutId);
+                const query = searchInput.value;
+
+                if (query.length > 2) {
+                    timeoutId = setTimeout(() => {
+                        // Используем твои URL параметры для API поиска
+                        const url = `/movies/search/?q=${encodeURIComponent(query)}&live=1`;
+                        fetch(url)
+                            .then(response => response.json())
+                            .then(data => {
+                                resultsContainer.innerHTML = '';
+                                if (data.movies && data.movies.length) {
+                                    data.movies.forEach(movie => {
+                                        resultsContainer.innerHTML += `
+                                            <div class="search-item">
+                                                <img src="${movie.poster_url || 'https://via.placeholder.com/50'}" alt="${movie.title}">
+                                                <a href="/movies/${movie.id}/">${movie.title}</a>
+                                            </div>`;
+                                    });
+                                }
+                                if (data.actors && data.actors.length) {
+                                    data.actors.forEach(actor => {
+                                        resultsContainer.innerHTML += `
+                                            <div class="search-item">
+                                                <img src="${actor.photo_url || 'https://via.placeholder.com/50'}" alt="${actor.name}">
+                                                <a href="/movies/actor/${actor.id}/">${actor.name}</a>
+                                            </div>`;
+                                    });
+                                }
+                                if (resultsContainer.innerHTML !== '') {
+                                    resultsContainer.classList.add('visible');
+                                } else {
+                                    resultsContainer.classList.remove('visible');
+                                }
+                            })
+                            .catch(error => console.error('Ошибка поиска:', error));
+                    }, 300);
+                } else {
+                    resultsContainer.innerHTML = '';
+                    resultsContainer.classList.remove('visible');
+                }
+            }
+
+            searchInput.addEventListener('input', performSearch);
+            document.addEventListener('click', e => { if (!searchForm.contains(e.target)) resultsContainer.classList.remove('visible'); });
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+
+    <script>
+        (function() {
+            const root = document.documentElement;
+            const btn = document.getElementById('theme-toggle');
+            const icon = document.getElementById('theme-icon');
+
+            function applyTheme(theme) {
+                root.setAttribute('data-theme', theme);
+                if (theme === 'light') {
+                    icon.className = 'fa-solid fa-sun';
+                } else {
+                    icon.className = 'fa-solid fa-moon';
+                }
+            }
+
+            const saved = localStorage.getItem('theme') || 'dark';
+            applyTheme(saved);
+
+            btn.addEventListener('click', function() {
+                const current = root.getAttribute('data-theme');
+                const next = current === 'dark' ? 'light' : 'dark';
+                applyTheme(next);
+                localStorage.setItem('theme', next);
+            });
+        })();
+    </script>
+</body>
+</html>

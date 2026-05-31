@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}Добавить фильм через API | MovieRecommender{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5" style="max-width: 600px;">
+    <h2 class="fw-bold mb-4"><i class="fa-solid fa-circle-plus me-2 text-primary"></i> Добавить фильм через TMDb</h2>
+    <div class="p-4 rounded-4" style="background: var(--card-bg); border: 1px solid rgba(255,255,255,0.07);">
+        <form method="POST">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="tmdb_movie_id" class="form-label">ID фильма на TMDb</label>
+                <input type="text" id="tmdb_movie_id" name="tmdb_movie_id" class="form-control bg-dark text-white border-secondary" placeholder="Например: 550" required>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Добавить фильм</button>
+                <a href="{% url 'home' %}" class="btn btn-outline-secondary">Назад</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

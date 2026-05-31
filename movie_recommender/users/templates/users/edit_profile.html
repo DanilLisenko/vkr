@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактировать профиль | MovieRecommender{% endblock %}
+
+{% block extra_css %}
+<style>
+    .edit-card {
+        background: var(--card-bg);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 16px;
+        padding: 36px;
+        max-width: 560px;
+        margin: 0 auto;
+    }
+    .edit-card .form-control, .edit-card .form-select, .edit-card textarea {
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(255,255,255,0.12) !important;
+        color: var(--text-color) !important;
+        border-radius: 10px;
+    }
+    .edit-card .form-control:focus, .edit-card textarea:focus {
+        border-color: var(--accent-color) !important;
+        box-shadow: none !important;
+    }
+    .edit-card label { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 6px; }
+    .edit-card p { margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <div class="edit-card">
+        <h2 class="fw-bold mb-4"><i class="fa-solid fa-pen me-2 text-primary"></i>Редактировать профиль</h2>
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="mb-3">
+                <label>{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}
+                <div class="text-danger small mt-1">{% for e in field.errors %}{{ e }}{% endfor %}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary px-4">Сохранить</button>
+                <a href="{% url 'users:profile' %}" class="btn btn-outline-secondary px-4">Отмена</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

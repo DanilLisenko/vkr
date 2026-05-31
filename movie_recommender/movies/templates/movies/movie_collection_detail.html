@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ collection_title }} | MovieRecommender{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}" class="text-muted text-decoration-none">Главная</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'movies:movie_collections' %}" class="text-muted text-decoration-none">Подборки</a></li>
+            <li class="breadcrumb-item active text-white">{{ collection_title }}</li>
+        </ol>
+    </nav>
+
+    <h1 class="fw-bold mb-4">{{ collection_title }}</h1>
+
+    {% if movies %}
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4">
+            {% for movie in movies %}
+            <div class="col">
+                <a href="{% url 'movies:movie_detail' movie.id %}" class="text-decoration-none">
+                    <div class="movie-card">
+                        <div class="poster-wrapper">
+                            <img src="{{ movie.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}"
+                                 class="movie-poster" alt="{{ movie.title }}">
+                            <div class="rating-badge">
+                                <i class="fa-solid fa-star me-1 text-warning"></i>{{ movie.rating|floatformat:1 }}
+                            </div>
+                        </div>
+                        <div class="movie-info">
+                            <div class="movie-title text-white">{{ movie.title }}</div>
+                            <div class="movie-meta text-muted">{{ movie.release_date|date:"Y" }}</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <p class="text-muted fs-5">В этой подборке пока нет фильмов.</p>
+            <a href="{% url 'movies:movie_collections' %}" class="btn btn-outline-light mt-2">← Назад к подборкам</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

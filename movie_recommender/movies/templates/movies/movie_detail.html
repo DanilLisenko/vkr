@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+{% load movie_tags %}
+
+{% block title %}{{ movie.title }} | MovieRecommender{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-card {
+        background: var(--card-bg);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 16px;
+        padding: 32px;
+    }
+    [data-theme="light"] .detail-card { background: #fff; border-color: rgba(0,0,0,0.08); }
+
+    .person-card {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 12px;
+        overflow: hidden;
+        text-align: center;
+        transition: transform 0.2s;
+        flex-shrink: 0;
+        width: 120px;
+    }
+    .person-card:hover { transform: translateY(-4px); }
+    [data-theme="light"] .person-card { background: #f4f5f7; border-color: rgba(0,0,0,0.08); }
+    .person-card img { width: 120px; height: 160px; object-fit: cover; display: block; }
+    .person-card .p-name { font-size: 0.78rem; padding: 8px 6px; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .person-card .p-role { font-size: 0.7rem; color: var(--text-muted); padding: 0 6px 8px; }
+
+    .scroll-row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+    .scroll-row::-webkit-scrollbar { height: 4px; }
+    .scroll-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+    [data-theme="light"] .scroll-row::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
+
+    .section-title {
+        font-size: 1.15rem; font-weight: 700;
+        margin: 28px 0 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    [data-theme="light"] .section-title { border-color: rgba(0,0,0,0.08); }
+
+    .review-item {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 12px;
+    }
+    [data-theme="light"] .review-item { background: #f4f5f7; border-color: rgba(0,0,0,0.08); }
+
+    .btn-action {
+        border-radius: 10px; font-weight: 600; font-size: 0.9rem;
+        padding: 9px 18px; border: 1px solid rgba(255,255,255,0.15);
+        background: rgba(255,255,255,0.05); color: var(--text-color);
+        transition: all 0.2s; cursor: pointer;
+    }
+    .btn-action:hover { background: rgba(255,255,255,0.12); }
+    .btn-action.active { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+    [data-theme="light"] .btn-action { background: #fff; border-color: rgba(0,0,0,0.15); color: #1a1b22; }
+    [data-theme="light"] .btn-action:hover { background: #e8eaed; }
+    [data-theme="light"] .btn-action.active { background: var(--accent-color); color: #fff; }
+
+    .genre-pill {
+        display: inline-block;
+        padding: 5px 14px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.07);
+        border: 1px solid rgba(255,255,255,0.1);
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin: 3px;
+        text-decoration: none;
+        transition: 0.2s;
+    }
+    .genre-pill:hover { background: var(--accent-color); color: #fff; border-color: var(--accent-color); }
+    [data-theme="light"] .genre-pill { background: #e8eaed; border-color: rgba(0,0,0,0.1); color: #6b7280; }
+
+    .review-form-card {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+        padding: 24px;
+        margin-top: 16px;
+    }
+    [data-theme="light"] .review-form-card { background: #f4f5f7; border-color: rgba(0,0,0,0.08); }
+    .review-form-card .form-control {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        color: var(--text-color);
+        border-radius: 10px;
+    }
+    [data-theme="light"] .review-form-card .form-control { background: #fff; border-color: rgba(0,0,0,0.15); color: #1a1b22; }
+    .review-form-card .form-control:focus { border-color: var(--accent-color); box-shadow: none; }
+
+    .trailer-btn {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 10px;
+        padding: 8px 14px;
+        color: var(--text-color);
+        font-size: 0.83rem;
+        font-weight: 500;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.2s;
+        max-width: 200px;
+    }
+    .trailer-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.25); }
+    .trailer-btn.active { background: rgba(229,9,20,0.15); border-color: var(--accent-color); color: #fff; }
+    [data-theme="light"] .trailer-btn { background: #f4f5f7; border-color: rgba(0,0,0,0.12); color: #1a1b22; }
+    [data-theme="light"] .trailer-btn:hover { background: #e8eaed; }
+    [data-theme="light"] .trailer-btn.active { background: rgba(229,9,20,0.08); border-color: var(--accent-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+
+    <!-- Хлебные крошки -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'home' %}" class="text-muted text-decoration-none">Главная</a></li>
+            <li class="breadcrumb-item active text-white">{{ movie.title }}</li>
+        </ol>
+    </nav>
+
+    <!-- Главный блок -->
+    <div class="detail-card mb-4">
+        <div class="row g-4">
+            <!-- Постер -->
+            <div class="col-md-3 col-lg-2">
+                <img src="{{ movie.poster_url|default:'https://via.placeholder.com/300x450/1a1b22/ffffff?text=Нет+постера' }}"
+                     class="img-fluid rounded-3 w-100" alt="{{ movie.title }}"
+                     style="aspect-ratio:2/3;object-fit:cover;">
+            </div>
+
+            <!-- Информация -->
+            <div class="col-md-9 col-lg-10">
+                <h1 class="fw-bold mb-2" style="font-size:2rem;">{{ movie.title }}</h1>
+
+                <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+                    {% if movie.rating %}
+                    <span class="fw-bold fs-5" style="color:#ff9500;">
+                        <i class="fa-solid fa-star me-1"></i>{{ movie.rating|floatformat:1 }}
+                    </span>
+                    {% endif %}
+                    {% if movie.release_date %}
+                    <span class="text-muted">{{ movie.release_date|date:"Y" }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    {% for genre in movie.genres.all %}
+                        <span class="genre-pill">{{ genre.name }}</span>
+                    {% endfor %}
+                </div>
+
+                {% if movie.description %}
+                <p class="text-muted lh-lg mb-4" style="font-size:0.97rem;">{{ movie.description }}</p>
+                {% endif %}
+
+                {% if user.is_authenticated %}
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn-action {% if in_watchlist %}active{% endif %}" id="btn-watchlist" data-movie-id="{{ movie.id }}">
+                        <i class="fa-solid fa-bookmark me-1"></i>
+                        <span id="watchlist-label">{% if in_watchlist %}В списке{% else %}Буду смотреть{% endif %}</span>
+                    </button>
+                    <button class="btn-action {% if is_watched %}active{% endif %}" id="btn-watched" data-movie-id="{{ movie.id }}">
+                        <i class="fa-solid fa-eye me-1"></i>
+                        <span id="watched-label">{% if is_watched %}Просмотрено{% else %}Отметить просмотренным{% endif %}</span>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Трейлеры -->
+    {% if trailers %}
+    <div class="mb-4">
+        <div class="section-title"><i class="fa-brands fa-youtube me-2 text-danger"></i>Трейлеры</div>
+        <div style="max-width:860px;">
+
+            <!-- Контейнер плеера -->
+            <div id="yt-player-wrapper" style="border-radius:14px;overflow:hidden;background:#000;width:100%;position:relative;padding-top:56.25%;">
+                <div id="yt-player" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
+            </div>
+
+            <!-- Fallback: показывается если встраивание запрещено -->
+            <div id="trailer-fallback" style="display:none;border-radius:14px;background:#111;aspect-ratio:16/9;flex-direction:column;align-items:center;justify-content:center;gap:14px;">
+                <i class="fa-brands fa-youtube" style="font-size:3.5rem;color:#ff0000;"></i>
+                <p class="mb-1" style="color:#ccc;font-size:0.95rem;">Видео недоступно для встраивания</p>
+                <a id="trailer-yt-link" href="https://www.youtube.com/watch?v={{ trailers.0.key }}"
+                   target="_blank" rel="noopener" class="btn btn-danger px-4">
+                    <i class="fa-brands fa-youtube me-2"></i>Открыть на YouTube
+                </a>
+            </div>
+
+            <!-- Список трейлеров -->
+            {% if trailers|length > 1 %}
+            <div class="d-flex gap-2 mt-3 flex-wrap" id="trailer-list">
+                {% for trailer in trailers %}
+                <button class="trailer-btn {% if forloop.first %}active{% endif %}"
+                        data-key="{{ trailer.key }}"
+                        data-name="{{ trailer.name }}"
+                        data-yt-url="https://www.youtube.com/watch?v={{ trailer.key }}"
+                        onclick="switchTrailer(this)">
+                    <i class="fa-brands fa-youtube me-1 text-danger"></i>
+                    <span>{{ trailer.name|truncatechars:30 }}</span>
+                    <small class="d-block" style="font-size:0.7rem;color:var(--text-muted);">{{ trailer.type }}</small>
+                </button>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Данные трейлеров для JS -->
+    <script>
+    var TRAILER_KEYS = [{% for t in trailers %}'{{ t.key }}',{% endfor %}];
+    var TRAILER_URLS = [{% for t in trailers %}'https://www.youtube.com/watch?v={{ t.key }}',{% endfor %}];
+    var currentTrailerIndex = 0;
+    </script>
+    {% endif %}
+
+    <!-- Режиссёры -->
+    {% if directors %}
+    <div class="section-title"><i class="fa-solid fa-clapperboard me-2 text-muted"></i>Режиссёры</div>
+    <div class="scroll-row mb-4">
+        {% for credit in directors %}
+        <a href="{% url 'movies:person_detail' credit.person.id %}" class="text-decoration-none">
+            <div class="person-card">
+                {% if credit.person.photo_url %}
+                    <img src="{{ credit.person.photo_url }}" alt="{{ credit.person.name }}">
+                {% else %}
+                    <div style="width:120px;height:160px;background:#25262e;display:flex;align-items:center;justify-content:center;">
+                        <i class="fa-solid fa-user text-muted fs-3"></i>
+                    </div>
+                {% endif %}
+                <div class="p-name">{{ credit.person.name }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Актёры -->
+    {% if actors %}
+    <div class="section-title"><i class="fa-solid fa-users me-2 text-muted"></i>Актёрский состав</div>
+    <div class="scroll-row mb-4">
+        {% for actor in actors|slice:":20" %}
+        <a href="{% url 'movies:actor_detail' actor.id %}" class="text-decoration-none">
+            <div class="person-card">
+                {% if actor.photo_url %}
+                    <img src="{{ actor.photo_url }}" alt="{{ actor.name }}">
+                {% else %}
+                    <div style="width:120px;height:160px;background:#25262e;display:flex;align-items:center;justify-content:center;">
+                        <i class="fa-solid fa-user text-muted fs-3"></i>
+                    </div>
+                {% endif %}
+                <div class="p-name">{{ actor.name }}</div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Отзывы -->
+    <div class="section-title"><i class="fa-solid fa-star me-2 text-warning"></i>Отзывы</div>
+
+    {% if reviews %}
+        {% for review in reviews %}
+        <div class="review-item">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-1">
+                <a href="{% url 'users:user_profile' review.user.username %}" class="fw-bold text-white text-decoration-none">{{ review.user.username }}</a>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning text-dark"><i class="fa-solid fa-star me-1"></i>{{ review.rating }}/10</span>
+                    <span class="text-muted small">{{ review.created_at|date:"d.m.Y" }}</span>
+                    {% if user.is_staff %}
+                    <a href="{% url 'movies:delete_review' review.id %}" class="btn btn-outline-danger btn-sm py-0 px-2"
+                       onclick="return confirm('Удалить отзыв?')" title="Удалить">
+                        <i class="fa-solid fa-trash" style="font-size:0.75rem;"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% if review.review_text %}
+                <div class="text-muted" style="font-size:0.92rem;">{{ review.review_text }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-muted mb-3">Отзывов пока нет. Будьте первым!</p>
+    {% endif %}
+
+    <!-- Форма отзыва -->
+    {% if user.is_authenticated %}
+    <div class="review-form-card">
+        <h5 class="fw-bold mb-3">{% if user_review %}Изменить отзыв{% else %}Оставить отзыв{% endif %}</h5>
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="mb-3">
+                <label class="text-muted small mb-1">{{ field.label }}</label>
+                {{ field }}
+            </div>
+            {% endfor %}
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary px-4">
+                    {% if user_review %}Обновить{% else %}Отправить{% endif %}
+                </button>
+                {% if user_review %}
+                <a href="{% url 'movies:delete_own_review' user_review.id %}"
+                   class="btn btn-outline-danger"
+                   onclick="return confirm('Удалить свой отзыв?')">Удалить</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    {% else %}
+    <p class="text-muted mt-2"><a href="{% url 'users:login' %}" class="text-white">Войдите</a>, чтобы оставить отзыв.</p>
+    {% endif %}
+
+    <!-- Похожие фильмы -->
+    {% if similar_movies %}
+    <div class="section-title mt-2"><i class="fa-solid fa-film me-2 text-muted"></i>Похожие фильмы</div>
+    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-3">
+        {% for sim in similar_movies %}
+        <div class="col">
+            <a href="{% url 'movies:movie_detail' sim.id %}" class="text-decoration-none">
+                <div class="movie-card">
+                    <div class="poster-wrapper">
+                        <img src="{{ sim.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=?' }}" class="movie-poster" alt="{{ sim.title }}">
+                        <div class="rating-badge"><i class="fa-solid fa-star me-1 text-warning"></i>{{ sim.rating|floatformat:1 }}</div>
+                    </div>
+                    <div class="movie-info">
+                        <div class="movie-title">{{ sim.title }}</div>
+                        <div class="movie-meta">{{ sim.release_date|date:"Y" }}</div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if trailers %}
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+var ytPlayer = null;
+var ytReady = false;
+var pendingKey = null;
+
+// YouTube IFrame API вызывает эту функцию когда готов
+function onYouTubeIframeAPIReady() {
+    ytReady = true;
+    var key = (typeof TRAILER_KEYS !== 'undefined' && TRAILER_KEYS.length) ? TRAILER_KEYS[0] : null;
+    if (key) loadPlayer(key, 0);
+}
+
+function loadPlayer(key, autoplay) {
+    var wrapper = document.getElementById('yt-player-wrapper');
+    var fallback = document.getElementById('trailer-fallback');
+
+    // Показываем плеер, скрываем fallback
+    if (wrapper) wrapper.style.display = '';
+    if (fallback) fallback.style.display = 'none';
+
+    if (ytPlayer) {
+        ytPlayer.loadVideoById(key);
+        return;
+    }
+
+    // Подгоняем высоту div под соотношение 16:9
+    var w = (wrapper ? wrapper.offsetWidth : 860);
+    document.getElementById('yt-player').style.height = Math.round(w * 9/16) + 'px';
+
+    ytPlayer = new YT.Player('yt-player', {
+        videoId: key,
+        playerVars: {
+            rel: 0,
+            modestbranding: 1,
+            autoplay: autoplay,
+        },
+        events: {
+            onReady: function(e) { /* ready */ },
+            onError: function(e) {
+                // Коды 101, 150 = встраивание запрещено владельцем
+                showFallback(key);
+            }
+        }
+    });
+}
+
+function showFallback(key) {
+    var wrapper = document.getElementById('yt-player-wrapper');
+    var fallback = document.getElementById('trailer-fallback');
+    var link = document.getElementById('trailer-yt-link');
+    if (wrapper) wrapper.style.display = 'none';
+    if (fallback) { fallback.style.display = 'flex'; }
+    if (link && key) link.href = 'https://www.youtube.com/watch?v=' + key;
+}
+
+function switchTrailer(btn) {
+    var key = btn.dataset.key;
+    var ytUrl = btn.dataset.ytUrl || ('https://www.youtube.com/watch?v=' + key);
+    var link = document.getElementById('trailer-yt-link');
+    if (link) link.href = ytUrl;
+
+    document.querySelectorAll('.trailer-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+
+    var wrapper = document.getElementById('yt-player-wrapper');
+    var fallback = document.getElementById('trailer-fallback');
+    if (wrapper) wrapper.style.display = '';
+    if (fallback) fallback.style.display = 'none';
+
+    if (ytPlayer && ytPlayer.loadVideoById) {
+        ytPlayer.loadVideoById(key);
+    } else if (ytReady) {
+        loadPlayer(key, 1);
+    } else {
+        pendingKey = key;
+    }
+}
+</script>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var csrfToken = '{{ csrf_token }}';
+
+    function postAction(url, onSuccess) {
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        })
+        .then(function(r) { if (r.ok) return r.json(); throw new Error('not ok'); })
+        .then(onSuccess)
+        .catch(function(err) { console.warn('Ошибка:', err); });
+    }
+
+    var btnWatchlist = document.getElementById('btn-watchlist');
+    var btnWatched   = document.getElementById('btn-watched');
+
+    if (btnWatchlist) {
+        btnWatchlist.addEventListener('click', function() {
+            postAction('/movies/' + this.dataset.movieId + '/add_to_watchlist/', function() {
+                btnWatchlist.classList.add('active');
+                var lbl = document.getElementById('watchlist-label');
+                if (lbl) lbl.textContent = 'В списке';
+            });
+        });
+    }
+
+    if (btnWatched) {
+        btnWatched.addEventListener('click', function() {
+            postAction('/movies/' + this.dataset.movieId + '/mark_as_watched/', function() {
+                btnWatched.classList.add('active');
+                var lbl = document.getElementById('watched-label');
+                if (lbl) lbl.textContent = 'Просмотрено';
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

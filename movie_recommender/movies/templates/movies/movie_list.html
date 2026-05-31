@@ -1,0 +1,37 @@
+<!-- movies/templates/movies/movie_list.html -->
+{% extends 'base.html' %}
+
+{% block title %}Список фильмов{% endblock %}
+
+{% block content %}
+<h1>Популярные фильмы</h1>
+<div class="row">
+    {% for movie in movies %}
+        <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="{{ forloop.counter|add:'100' }}">
+            <div class="card">
+                <a href="{% url 'movies:movie_detail' movie.id %}">
+                    <img src="{{ movie.poster_url }}" class="card-img-top" alt="{{ movie.title }}">
+                </a>
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <a href="{% url 'movies:movie_detail' movie.id %}">{{ movie.title }}</a>
+                    </h5>
+                    <p class="card-text">Рейтинг: {{ movie.rating }}</p>
+                    <p class="card-text">Дата выхода: {{ movie.release_date }}</p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            {% for genre in movie.genres.all %}
+                                {{ genre.name }}{% if not forloop.last %}, {% endif %}
+                            {% empty %}
+                                Жанры не указаны
+                            {% endfor %}
+                        </small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <p>Фильмы не найдены.</p>
+    {% endfor %}
+</div>
+{% endblock %}

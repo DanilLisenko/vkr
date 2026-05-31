@@ -1,0 +1,333 @@
+<!-- movies/templates/movies/search_page.html -->
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Поиск{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-container {
+        min-height: 50vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+    .search-form {
+        width: 100%;
+        max-width: 600px;
+        position: relative;
+    }
+    .results-container {
+        margin-top: 2rem;
+    }
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #F1F8E9;
+        border: 1px solid #ccc;
+        z-index: 1000;
+        max-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: opacity 0.2s ease-in-out;
+        opacity: 0;
+    }
+    .search-results.visible {
+        opacity: 1;
+    }
+    .search-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #ccc;
+        transition: background-color 0.2s ease;
+    }
+    .search-item:hover {
+        background-color: #E8F5E9;
+    }
+    .search-item img {
+        width: 50px;
+        height: 50px;
+        margin-right: 10px;
+        object-fit: cover;
+    }
+    .search-item a {
+        text-decoration: none;
+        color: #333;
+        flex-grow: 1;
+        font-size: 1rem;
+    }
+    .search-item a:hover {
+        color: #28a745;
+    }
+    .search-error {
+        padding: 10px;
+        color: #d32f2f;
+        text-align: center;
+        font-size: 1rem;
+    }
+    .search-empty {
+        padding: 10px;
+        color: #666;
+        text-align: center;
+        font-size: 1rem;
+    }
+    .movie-item {
+        opacity: 1 !important; /* Гарантируем видимость */
+        transition: none; /* Отключаем анимации для теста */
+    }
+    .card {
+        opacity: 1 !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+<div class="search-container">
+    <h1 class="mb-4">Найти что-то интересное</h1>
+    <form class="search-form" id="search-form" action="{% url 'movies:search_page' %}" method="get">
+        <div class="input-group mb-3">
+            <input class="form-control" type="search" name="q" id="search-input" placeholder="Поиск фильмов и актеров" aria-label="Search" value="{{ request.GET.q|default:'' }}">
+            <button class="btn btn-outline-success" type="submit">Поиск</button>
+        </div>
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <select class="form-select" name="genre" id="genre-filter">
+                    <option value="">Все жанры</option>
+                    {% for genre in genres %}
+                        <option value="{{ genre.name }}" {% if request.GET.genre == genre.name %}selected{% endif %}>{{ genre.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 mb-3">
+                <select class="form-select" name="sort" id="sort-filter">
+                    <option value="relevance" {% if request.GET.sort == "relevance" %}selected{% endif %}>По релевантности</option>
+                    <option value="rating" {% if request.GET.sort == "rating" %}selected{% endif %}>По рейтингу</option>
+                    <option value="release_date" {% if request.GET.sort == "release_date" %}selected{% endif %}>По дате выпуска</option>
+                </select>
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="year-from">Год выпуска (от):</label>
+                <input type="number" class="form-control" name="year_from" id="year-from" placeholder="Например, 1990" value="{{ request.GET.year_from|default:'' }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="year-to">Год выпуска (до):</label>
+                <input type="number" class="form-control" name="year_to" id="year-to" placeholder="Например, 2023" value="{{ request.GET.year_to|default:'' }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="min-rating">Минимальный рейтинг:</label>
+                <input type="number" class="form-control" name="min_rating" id="min-rating" step="0.1" min="0" max="10" placeholder="Например, 8.0" value="{{ request.GET.min_rating|default:'' }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="actor-input">Актер:</label>
+                <input type="text" class="form-control" name="actor_input" id="actor-input" placeholder="Введите имя актера" value="{{ request.GET.actor_input|default:'' }}">
+                <input type="hidden" name="actor" id="actor-id" value="{{ request.GET.actor|default:'' }}">
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="results-container" id="search-results"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/search.js' %}"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchForm = document.getElementById('search-form');
+    const searchInput = document.getElementById('search-input');
+    const genreFilter = document.getElementById('genre-filter');
+    const sortFilter = document.getElementById('sort-filter');
+    const yearFrom = document.getElementById('year-from');
+    const yearTo = document.getElementById('year-to');
+    const minRating = document.getElementById('min-rating');
+    const actorInput = document.getElementById('actor-input');
+    const actorId = document.getElementById('actor-id');
+    const resultsContainer = document.getElementById('search-results');
+
+    // Инициализация параметров из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('q')) {
+        searchInput.value = urlParams.get('q');
+    }
+    if (urlParams.has('genre')) {
+        genreFilter.value = urlParams.get('genre');
+    }
+    if (urlParams.has('sort')) {
+        sortFilter.value = urlParams.get('sort');
+    }
+    if (urlParams.has('year_from')) {
+        yearFrom.value = urlParams.get('year_from');
+    }
+    if (urlParams.has('year_to')) {
+        yearTo.value = urlParams.get('year_to');
+    }
+    if (urlParams.has('min_rating')) {
+        minRating.value = urlParams.get('min_rating');
+    }
+    if (urlParams.has('actor')) {
+        actorId.value = urlParams.get('actor');
+    }
+
+    // Автодополнение для актера
+    let actorTimeout;
+    actorInput.addEventListener('input', function() {
+        clearTimeout(actorTimeout);
+        const query = actorInput.value.trim();
+        if (query.length < 2) {
+            actorId.value = '';
+            return;
+        }
+
+        actorTimeout = setTimeout(() => {
+            fetch(`/movies/search_actors/?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    let resultsContainer = document.querySelector('.search-results');
+                    if (!resultsContainer) {
+                        resultsContainer = document.createElement('div');
+                        resultsContainer.className = 'search-results';
+                        searchForm.appendChild(resultsContainer);
+                    }
+                    resultsContainer.innerHTML = '';
+                    if (data.actors?.length) {
+                        data.actors.forEach(actor => {
+                            const item = document.createElement('div');
+                            item.className = 'search-item';
+                            item.innerHTML = `
+                                <img src="${actor.photo_url}" alt="${actor.name}" onerror="this.src='https://placehold.co/50x50';">
+                                <a href="#" data-actor-id="${actor.id}">${actor.name}</a>
+                            `;
+                            item.querySelector('a').addEventListener('click', function(e) {
+                                e.preventDefault();
+                                actorInput.value = actor.name;
+                                actorId.value = actor.id;
+                                resultsContainer.classList.remove('visible');
+                                submitSearch();
+                            });
+                            resultsContainer.appendChild(item);
+                        });
+                        resultsContainer.classList.add('visible');
+                    } else {
+                        resultsContainer.classList.remove('visible');
+                    }
+                })
+                .catch(error => console.error('Ошибка автодополнения актера:', error));
+        }, 300);
+    });
+
+    // Дебouncing для поиска
+    let searchTimeout;
+    let isFetching = false;
+
+    function submitSearch() {
+        if (isFetching) return;
+
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            isFetching = true;
+
+            const query = searchInput.value.trim();
+            const genre = genreFilter.value;
+            const sort = sortFilter.value || 'relevance';
+            const year_from = yearFrom.value;
+            const year_to = yearTo.value;
+            const min_rating = minRating.value;
+            const actor = actorId.value;
+
+            console.log('Search params:', { query, genre, sort, year_from, year_to, min_rating, actor });
+
+            // Обновление URL
+            const newUrl = `/movies/search-page/?q=${encodeURIComponent(query)}&genre=${encodeURIComponent(genre)}&sort=${encodeURIComponent(sort)}&year_from=${encodeURIComponent(year_from)}&year_to=${encodeURIComponent(year_to)}&min_rating=${encodeURIComponent(min_rating)}&actor=${encodeURIComponent(actor)}`;
+            window.history.replaceState({}, '', newUrl);
+
+            const fetchUrl = `/movies/search/?q=${encodeURIComponent(query)}&genre=${encodeURIComponent(genre)}&sort=${encodeURIComponent(sort)}&year_from=${encodeURIComponent(year_from)}&year_to=${encodeURIComponent(year_to)}&min_rating=${encodeURIComponent(min_rating)}&actor=${encodeURIComponent(actor)}`;
+            console.log('Fetching URL:', fetchUrl);
+
+            fetch(fetchUrl)
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Received data:', data);
+                    resultsContainer.innerHTML = '';
+                    if (data.movies.length === 0 && data.actors.length === 0) {
+                        resultsContainer.innerHTML = '<p class="text-center">Ничего не найдено.</p>';
+                    } else {
+                        const resultsHtml = document.createElement('div');
+                        resultsHtml.className = 'row';
+                        if (data.movies.length > 0) {
+                            data.movies.forEach((movie, index) => {
+                                resultsHtml.innerHTML += `
+                                    <div class="col-md-3 mb-3 movie-item">
+                                        <div class="card h-100">
+                                            <a href="/movies/${movie.id}/">
+                                                <img src="${movie.poster_url}" class="card-img-top" alt="${movie.title}">
+                                            </a>
+                                            <div class="card-body">
+                                                <h5 class="card-title">
+                                                    <a href="/movies/${movie.id}/">${movie.title}</a>
+                                                </h5>
+                                                ${movie.rating ? `<p class="card-text">Рейтинг: ${movie.rating}</p>` : ''}
+                                                ${movie.release_date ? `<p class="card-text">${movie.release_date}</p>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                        if (data.actors.length > 0) {
+                            data.actors.forEach((actor, index) => {
+                                resultsHtml.innerHTML += `
+                                    <div class="col-md-3 mb-3 movie-item">
+                                        <div class="card h-100">
+                                            <a href="/movies/actor/${actor.id}/">
+                                                <img src="${actor.photo_url}" class="card-img-top" alt="${actor.name}">
+                                            </a>
+                                            <div class="card-body">
+                                                <h5 class="card-title">
+                                                    <a href="/movies/actor/${actor.id}/">${actor.name}</a>
+                                                </h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            });
+                        }
+                        resultsContainer.appendChild(resultsHtml);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка поиска:', error);
+                    resultsContainer.innerHTML = '<p class="text-center">Ошибка при выполнении поиска.</p>';
+                })
+                .finally(() => {
+                    isFetching = false;
+                });
+        }, 300);
+    }
+
+    // Инициализация поиска
+    submitSearch();
+
+    searchForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitSearch();
+    });
+
+    // Обработчики событий для фильтров
+    [searchInput, genreFilter, sortFilter, yearFrom, yearTo, minRating].forEach(element => {
+        element.addEventListener('change', submitSearch);
+        element.addEventListener('input', submitSearch);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Актёры | MovieRecommender{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Дизайн карточки актёра */
+    .actor-card {
+        background-color: var(--card-bg);
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
+        height: 100%;
+        text-align: center;
+        padding-bottom: 20px;
+    }
+    .actor-card:hover {
+        transform: translateY(-8px);
+        border-color: rgba(255, 255, 255, 0.15);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
+    }
+    .actor-photo-wrapper {
+        width: 150px;
+        height: 150px;
+        margin: 25px auto 15px auto;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        background-color: #25262e;
+    }
+    .actor-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+    .actor-card:hover .actor-photo {
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <h1 class="fw-bold mb-4"><i class="fa-solid fa-users text-primary me-2"></i> База актёров</h1>
+
+    {% if actors %}
+        <div id="actors-container" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+            {% for actor in actors %}
+                <div class="col actor-item">
+                    <a href="{% url 'movies:actor_detail' actor.id %}" class="text-decoration-none">
+                        <div class="actor-card">
+                            <div class="actor-photo-wrapper">
+                                {% if actor.photo_url %}
+                                    <img src="{{ actor.photo_url }}" class="actor-photo" alt="{{ actor.name }}">
+                                {% else %}
+                                    <div class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-muted">
+                                        <i class="fa-solid fa-user fs-1"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <h5 class="fw-bold mb-1 px-3 text-truncate" style="color:var(--text-color);">{{ actor.name }}</h5>
+                            <p class="text-muted small mb-0">
+                                {{ actor.movies_count }} фильм{{ actor.movies_count|pluralize:",,ов" }}
+                            </p>
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if actors.has_next %}
+            <div class="text-center mt-5">
+                <button id="load-more-btn" class="btn btn-outline-light btn-lg px-5 rounded-pill" data-next-page="{{ actors.next_page_number }}">
+                    <i class="fa-solid fa-arrow-rotate-right me-2"></i> Загрузить ещё
+                </button>
+            </div>
+        {% endif %}
+    {% else %}
+        <p class="text-muted fs-5">Актеры не найдены.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    if (loadMoreBtn) {
+        loadMoreBtn.addEventListener('click', () => {
+            const nextPage = loadMoreBtn.getAttribute('data-next-page');
+
+            // Визуальный отклик при нажатии
+            const originalText = loadMoreBtn.innerHTML;
+            loadMoreBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Загрузка...';
+            loadMoreBtn.disabled = true;
+
+            fetch(`/movies/load-more-actors/?page=${nextPage}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Ошибка сети: ' + response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    const container = document.getElementById('actors-container');
+
+                    data.actors.forEach(actor => {
+                        const actorDiv = document.createElement('div');
+                        actorDiv.className = 'col actor-item';
+
+                        // Создаем карточку в новом темном стиле
+                        actorDiv.innerHTML = `
+                            <a href="${actor.detail_url}" class="text-decoration-none">
+                                <div class="actor-card">
+                                    <div class="actor-photo-wrapper">
+                                        <img src="${actor.photo_url}" class="actor-photo" alt="${actor.name}"
+                                             onerror="this.outerHTML='<div class=\\'w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-muted\\'><i class=\\'fa-solid fa-user fs-1\\'></i></div>'">
+                                    </div>
+                                    <h5 class="fw-bold text-white mb-1 px-3 text-truncate">${actor.name}</h5>
+                                    <p class="text-muted small mb-0">${actor.birth_date}</p>
+                                </div>
+                            </a>
+                        `;
+                        container.appendChild(actorDiv);
+                    });
+
+                    // Обновляем кнопку или удаляем её
+                    if (data.has_next) {
+                        loadMoreBtn.setAttribute('data-next-page', data.next_page);
+                        loadMoreBtn.innerHTML = originalText;
+                        loadMoreBtn.disabled = false;
+                    } else {
+                        loadMoreBtn.remove();
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при загрузке актеров:', error);
+                    loadMoreBtn.innerHTML = originalText;
+                    loadMoreBtn.disabled = false;
+                });
+        });
+    }
+});
+</script>
+{% endblock %}

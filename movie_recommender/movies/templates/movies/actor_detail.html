@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ actor.name }} | MovieRecommender{% endblock %}
+
+{% block content %}
+<div class="container mt-5 mb-5">
+    <div class="row g-5 align-items-center">
+        <div class="col-md-4 col-lg-3">
+            {% if actor.photo_url %}
+                <img src="{{ actor.photo_url }}" class="img-fluid rounded-4 shadow-lg w-100" alt="{{ actor.name }}" style="object-fit: cover; border: 1px solid rgba(255,255,255,0.1);">
+            {% else %}
+                <div class="rounded-4 bg-dark d-flex align-items-center justify-content-center shadow-lg w-100" style="aspect-ratio: 2/3; border: 1px solid rgba(255,255,255,0.05);">
+                    <i class="fa-solid fa-user text-muted" style="font-size: 4rem;"></i>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-8 col-lg-9">
+            <h1 class="fw-bold mb-3" style="font-size: 2.8rem;">{{ actor.name }}</h1>
+
+            {% if actor.birth_date %}
+            <div class="mb-4">
+                <span class="badge bg-secondary bg-opacity-25 text-light fs-6 px-3 py-2 border border-secondary border-opacity-25 rounded-pill">
+                    <i class="fa-solid fa-calendar-day me-2 text-primary"></i>
+                    {{ actor.birth_date|date:"d E Y" }}
+                </span>
+            </div>
+            {% endif %}
+
+            {% if actor.bio %}
+                <h4 class="fw-bold mb-3">Биография</h4>
+                <div class="text-muted lh-lg" style="font-size: 1.05rem;">
+                    {{ actor.bio }}
+                </div>
+            {% else %}
+                <p class="text-muted italic opacity-50"><i class="fa-solid fa-info-circle me-1"></i> Дополнительная информация об актёре временно недоступна.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <h3 class="fw-bold mt-5 mb-4 border-top border-secondary border-opacity-25 pt-4">
+        <i class="fa-solid fa-film me-2 text-warning"></i> Фильмография
+    </h3>
+
+    {% if movies %}
+        <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4">
+            {% for movie in movies %}
+            <div class="col">
+                <a href="{% url 'movies:movie_detail' movie.id %}" class="text-decoration-none">
+                    <div class="movie-card">
+                        <div class="poster-wrapper">
+                            <img src="{{ movie.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="movie-poster" alt="{{ movie.title }}">
+                            <div class="rating-badge">
+                                <i class="fa-solid fa-star me-1 text-warning"></i>{{ movie.rating|floatformat:1 }}
+                            </div>
+                        </div>
+                        <div class="movie-info">
+                            <div class="movie-title text-white">{{ movie.title }}</div>
+                            <div class="movie-meta text-muted">{{ movie.release_date|date:"Y" }}</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="py-4">
+            <p class="text-muted fs-5">Фильмы с участием этого актёра не найдены.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

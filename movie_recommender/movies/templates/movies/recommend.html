@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Персональная подборка ИИ{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.css" />
+<style>
+    .recommend-header {
+        text-align: center;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .recommend-header h1 {
+        font-weight: 800;
+        font-size: 2.5rem;
+        background: linear-gradient(45deg, #fff, #e50914);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    /* Настройки карусели */
+    .swiper-container-wrapper {
+        position: relative;
+        width: 100%;
+    }
+
+    .swiper {
+        width: 100%;
+        padding-top: 30px;
+        padding-bottom: 70px;
+    }
+
+    .swiper-slide {
+        background-position: center;
+        background-size: cover;
+        width: 320px;
+        height: 480px;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.5);
+    }
+
+    /* Контент карточки */
+    .slide-content {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 20px;
+        background: linear-gradient(to top, rgba(15,16,20, 1) 0%, rgba(15,16,20, 0.8) 40%, transparent 100%);
+        color: white;
+        transform: translateY(20px);
+        opacity: 0;
+        transition: all 0.4s ease;
+    }
+
+    .swiper-slide-active .slide-content {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    .slide-poster {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .slide-rating {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-weight: bold;
+        color: #4cd964;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Стилизация кастомных стрелок Swiper */
+    .swiper-button-next,
+    .swiper-button-prev {
+        color: #e50914 !important; /* Наш фирменный красный */
+        transition: transform 0.2s ease, color 0.2s ease;
+        background: rgba(26, 27, 34, 0.6);
+        backdrop-filter: blur(10px);
+        width: 55px;
+        height: 55px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .swiper-button-next:after,
+    .swiper-button-prev:after {
+        font-size: 1.5rem !important;
+        font-weight: bold;
+    }
+
+    .swiper-button-next:hover,
+    .swiper-button-prev:hover {
+        transform: scale(1.1);
+        background: #e50914;
+        color: #fff !important;
+        box-shadow: 0 0 15px rgba(229, 9, 20, 0.5);
+    }
+
+    .swiper-pagination-bullet-active {
+        background: #e50914 !important;
+    }
+
+    /* Скрываем стрелки на мобилках, чтобы не перекрывали карточки */
+    @media (max-width: 768px) {
+        .swiper-button-next,
+        .swiper-button-prev {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="recommend-header">
+        <h1>Специально для вас</h1>
+        <p class="text-muted fs-5">Нейросеть проанализировала ваши оценки и подобрала эти фильмы</p>
+    </div>
+
+    {% if movies %}
+        <div class="swiper-container-wrapper">
+            <div class="swiper mySwiper">
+                <div class="swiper-wrapper">
+                    {% for movie in movies %}
+                    <div class="swiper-slide">
+                        <img src="{{ movie.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="slide-poster" alt="{{ movie.title }}">
+                        <div class="slide-rating">
+                            <i class="fa-solid fa-star text-warning"></i> {{ movie.rating|floatformat:1 }}
+                        </div>
+                        <div class="slide-content">
+                            <h4 class="fw-bold text-truncate" title="{{ movie.title }}">{{ movie.title }}</h4>
+                            <p class="small text-muted mb-3">{{ movie.release_date|date:"Y" }} |
+                                {% for genre in movie.genres.all|slice:":2" %}
+                                    {{ genre.name }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </p>
+                            <a href="{% url 'movies:movie_detail' movie.id %}" class="btn btn-primary w-100">Смотреть детали</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="swiper-pagination"></div>
+            </div>
+
+            <div class="swiper-button-prev"></div>
+            <div class="swiper-button-next"></div>
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <h2 class="text-muted">К сожалению, нам не удалось подобрать фильмы.</h2>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/swiper@10/swiper-bundle.min.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        var swiper = new Swiper(".mySwiper", {
+            effect: "coverflow",
+            grabCursor: true,
+            centeredSlides: true,
+            slidesPerView: "auto",
+            loop: true, // Бесконечное кручение
+            coverflowEffect: {
+                rotate: 25,
+                stretch: 0,
+                depth: 250,
+                modifier: 1,
+                slideShadows: true,
+            },
+            pagination: {
+                el: ".swiper-pagination",
+                clickable: true,
+            },
+            // ПОДКЛЮЧАЕМ СТРЕЛКИ НАВИГАЦИИ
+            navigation: {
+                nextEl: ".swiper-button-next",
+                prevEl: ".swiper-button-prev",
+            },
+            autoplay: {
+                delay: 3500,
+                disableOnInteraction: false,
+            }
+        });
+    });
+</script>
+{% endblock %}

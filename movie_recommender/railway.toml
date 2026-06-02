@@ -1,0 +1,7 @@
+﻿[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn movie_recommender.wsgi --log-file -"
+healthcheckPath = "/"
+restartPolicyType = "on_failure"

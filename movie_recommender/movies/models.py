@@ -120,3 +120,15 @@ def update_actor_search_vector(sender, instance, **kwargs):
         search_vector=SearchVector('name', weight='A', config='russian') +
                      SearchVector('bio', weight='B', config='russian')
     )
+
+
+class MovieSimilarity(models.Model):
+    first_movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='similarity_from')
+    second_movie = models.ForeignKey(Movie, on_delete=models.CASCADE, related_name='similarity_to')
+    score = models.FloatField()
+
+    class Meta:
+        unique_together = ('first_movie', 'second_movie')
+        indexes = [
+            models.Index(fields=['first_movie', '-score']),
+        ]

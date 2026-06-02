@@ -150,6 +150,12 @@ CACHES = {
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
+# Railway работает за HTTPS-прокси — без этого куки сессии не устанавливаются
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+
 # ------------------------------------------------------------------ #
 # Логирование                                                          #
 # ------------------------------------------------------------------ #

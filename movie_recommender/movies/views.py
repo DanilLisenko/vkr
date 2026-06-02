@@ -3,14 +3,13 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from .models import Movie, Watchlist, Review, Actor, Genre , MovieCredit, SearchHistory
+from .models import Movie, Watchlist, Review, Actor, Genre , MovieCredit, SearchHistory, MovieSimilarity
 from .forms import ReviewForm
 from django.core.paginator import Paginator
 from django.urls import reverse
 from django.db.models import Q, Count
 from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank, TrigramSimilarity
 import re
-from .ml_recommender import get_ai_recommendation
 from .models import Movie, Watchlist, Review, Actor, Genre, MovieCredit, SearchHistory, Person
 import requests
 from django.conf import settings
@@ -78,10 +77,102 @@ def search(request):
 
 @login_required
 def recommend_movie(request):
-    recommended_movies = get_ai_recommendation(request.user, limit=10)
+    """
+    Формирование персональных рекомендаций на основе комплексного анализа профиля пользователя:
+    учитываются как добавления в списки (Watchlist), так и выставленные оценки (Review).
+    """
+    # 1. Собираем все фильмы, с которыми пользователь уже взаимодействовал, чтобы не рекомендовать их повторенно
+    watched_ids = set(Watchlist.objects.filter(user=request.user).values_list('movie_id', flat=True))
+    reviewed_ids = set(Review.objects.filter(user=request.user).values_list('movie_id', flat=True))
+    all_interacted_ids = watched_ids.union(reviewed_ids)
+
+    # 2. Извлекаем отзывы пользователя (явная обратная связь)
+    user_reviews = Review.objects.filter(user=request.user)
+
+    # Будем собирать «интересы» пользователя с весами
+    # Фильмы из Watchlist по умолчанию имеют базовый положительный вес (например, 1.0)
+    movie_weights = {m_id: 1.0 for m_id in watched_ids}
+
+    # Корректируем веса на основе оценок из отзывов (у тебя рейтинг, судя по форме, обычно от 1 до 10 или 1 до 5)
+    # Допустим, шкала 1-10. Центрируем оценку относительно среднего значения (5.5)
+    for review in user_reviews:
+        rating_weight = review.rating - 5.5  # Если оценка 10, вес +4.5. Если оценка 1, вес -4.5
+        movie_weights[review.movie_id] = rating_weight
+
+    if not movie_weights:
+        # Стратегия для «холодного старта» — если у пользователя нет истории
+        recommended_movies = list(Movie.objects.filter(
+            poster_url__isnull=False,
+            rating__gte=7.5
+        ).exclude(poster_url='').order_by('-rating')[:10])
+
+        context = {'movies': recommended_movies}
+        return render(request, 'movies/recommend.html', context)
+
+    # 3. Вычисляем итоговые кумулятивные баллы для кандидатов на рекомендацию
+    # Нам нужны строки матрицы схожести для фильмов, которые оценил пользователь
+    similarity_records = MovieSimilarity.objects.filter(
+        first_movie_id__in=movie_weights.keys()
+    ).exclude(
+        second_movie_id__in=all_interacted_ids  # Исключаем уже просмотренное
+    ).select_related('second_movie')
+
+    # Расчет взвешенной суммы схожести для каждого потенциального фильма
+    candidate_scores = {}
+    for record in similarity_records:
+        source_movie_id = record.first_movie_id
+        candidate_id = record.second_movie_id
+
+        # Информационный вес исходного фильма (из отзывов/отложенного)
+        user_weight = movie_weights.get(source_movie_id, 1.0)
+
+        # Вклад текущего сопоставления = Схожесть объектов * Вес отношения пользователя к фильму
+        contribution = record.score * user_weight
+
+        if candidate_id not in candidate_scores:
+            candidate_scores[candidate_id] = {
+                'movie': record.second_movie,
+                'total_score': 0.0
+            }
+        candidate_scores[candidate_id]['total_score'] += contribution
+
+    # 4. Сортируем кандидатов по убыванию набранных баллов
+    sorted_candidates = sorted(
+        candidate_scores.values(),
+        key=lambda x: x['total_score'],
+        reverse=True
+    )
+
+    # Отбираем топ-10 лучших рекомендаций
+    recommended_movies = [item['movie'] for item in sorted_candidates if item['total_score'] > 0][:10]
+
+    # Если из-за отрицательных отзывов набралось меньше 10 фильмов, добьем популярными
+    if len(recommended_movies) < 10:
+        additional_count = 10 - len(recommended_movies)
+        exclude_ids = all_interacted_ids.union({m.id for m in recommended_movies})
+        backup_movies = Movie.objects.filter(
+            poster_url__isnull=False,
+            rating__gte=7.0
+        ).exclude(id__in=exclude_ids).order_by('-rating')[:additional_count]
+        recommended_movies.extend(list(backup_movies))
+
+    # Определяем любимые жанры пользователя по положительным отзывам и watchlist
+    positive_movie_ids = [
+        m_id for m_id, w in movie_weights.items() if w > 0
+    ]
+    from collections import Counter
+    genre_counter = Counter()
+    if positive_movie_ids:
+        from .models import Genre as GenreModel
+        genre_rows = Movie.objects.filter(id__in=positive_movie_ids).values_list('genres__name', flat=True)
+        for genre_name in genre_rows:
+            if genre_name:
+                genre_counter[genre_name] += 1
+    top_genres = [name for name, _ in genre_counter.most_common(5)]
 
     context = {
-        'movies': recommended_movies  # Обрати внимание: теперь movies во множественном числе
+        'movies': recommended_movies,
+        'top_genres': top_genres,
     }
     return render(request, 'movies/recommend.html', context)
 
@@ -225,24 +316,17 @@ def mark_as_watched(request, movie_id):
     item.save()
     return JsonResponse({'status': 'ok', 'is_watched': True})
 
+
 def get_similar_movies(movie, limit=10):
-    """Похожие фильмы: совпадение жанров + близкий рейтинг."""
-    genre_ids = list(movie.genres.values_list('id', flat=True))
-    if genre_ids:
-        qs = Movie.objects.filter(
-            genres__in=genre_ids,
-            poster_url__isnull=False,
-            rating__gte=6.0,
-        ).exclude(
-            id=movie.id, poster_url=''
-        ).annotate(
-            common_genres=Count('genres', filter=Q(genres__in=genre_ids))
-        ).order_by('-common_genres', '-rating').distinct()[:limit]
-    else:
-        qs = Movie.objects.filter(
-            poster_url__isnull=False, rating__gte=6.5
-        ).exclude(id=movie.id, poster_url='').order_by('-rating')[:limit]
-    return list(qs)
+    """
+    Похожие фильмы: извлекаются из предсчитанной в БД взвешенной
+    матрицы мультикритериального сходства объектов.
+    """
+    similar_records = MovieSimilarity.objects.filter(
+        first_movie=movie
+    ).order_by('-score').select_related('second_movie')[:limit]
+
+    return [record.second_movie for record in similar_records]
 
 
 _POPULAR_IDS_CACHE = None
@@ -612,26 +696,6 @@ def delete_review(request, review_id):
     return redirect('movies:admin_dashboard')
 
 
-_SIM_MATRIX = None
-
-def _load_sim_matrix():
-    global _SIM_MATRIX
-    if _SIM_MATRIX is None:
-        import pickle as _pickle
-        # Ищем в нескольких возможных путях
-        candidates = [
-            os.path.join(settings.BASE_DIR, 'ml_weights', 'movie_similarities.pkl'),
-            os.path.join(settings.BASE_DIR, 'movies', 'ml_weights', 'movie_similarities.pkl'),
-        ]
-        for path in candidates:
-            if os.path.exists(path):
-                with open(path, 'rb') as f:
-                    _SIM_MATRIX = _pickle.load(f)
-                break
-        else:
-            _SIM_MATRIX = {}
-    return _SIM_MATRIX
-
 
 def mindmap_page(request):
     """Интерактивная карта ИИ-связей между фильмами."""
@@ -663,25 +727,35 @@ def mindmap_initial_api(request):
 
 
 def mindmap_similar_api(request, movie_id):
-    """AJAX: похожие фильмы — из pkl-матрицы если есть, иначе по жанрам."""
+    """AJAX: похожие фильмы для карты связей — из реляционной матрицы в БД."""
     movie_id = int(movie_id)
-    matrix = _load_sim_matrix()
-    sim_ids = matrix.get(movie_id, [])[:8]
 
-    RU = {'poster_url__isnull': False, 'poster_url__startswith': 'http',
-          'title__regex': r'[а-яА-ЯёЁ]'}
+    # Фильтр для названий на русском языке и наличия постеров
+    RU_filters = {
+        'second_movie__poster_url__isnull': False,
+        'second_movie__poster_url__startswith': 'http',
+        'second_movie__title__regex': r'[а-яА-ЯёЁ]'
+    }
 
-    if sim_ids:
-        movies = list(Movie.objects.filter(
-            id__in=sim_ids, **RU,
-        ).exclude(poster_url='')[:8])
-    else:
-        # Fallback: похожие по жанрам и рейтингу
+    # Забираем топ-8 похожих фильмов из нашей взвешенной матрицы
+    similar_records = MovieSimilarity.objects.filter(
+        first_movie_id=movie_id,
+        **RU_filters
+    ).order_by('-score').select_related('second_movie')[:8]
+
+    movies = [record.second_movie for record in similar_records]
+
+    # Если в нашей матрице вдруг пусто (например, для этого фильма еще не считали), делаем фоллбэк
+    if not movies:
         source = Movie.objects.filter(id=movie_id).prefetch_related('genres').first()
         if source:
             genre_ids = list(source.genres.values_list('id', flat=True))
-            qs = Movie.objects.filter(rating__gte=6.0, **RU).exclude(
-                poster_url='').exclude(id=movie_id)
+            qs = Movie.objects.filter(
+                rating__gte=6.0,
+                poster_url__isnull=False,
+                poster_url__startswith='http',
+                title__regex=r'[а-яА-ЯёЁ]'
+            ).exclude(id=movie_id)
             if genre_ids:
                 qs = qs.filter(genres__id__in=genre_ids).annotate(
                     common=Count('genres', filter=Q(genres__id__in=genre_ids))
@@ -689,8 +763,6 @@ def mindmap_similar_api(request, movie_id):
             else:
                 qs = qs.order_by('-rating')
             movies = list(qs.distinct()[:8])
-        else:
-            movies = []
 
     return JsonResponse({'movies': [
         {

@@ -125,7 +125,16 @@
 <div class="container">
     <div class="recommend-header">
         <h1>Специально для вас</h1>
-        <p class="text-muted fs-5">Нейросеть проанализировала ваши оценки и подобрала эти фильмы</p>
+        {% if top_genres %}
+        <p class="text-muted fs-5">
+            На основе ваших оценок и списка просмотра —
+            <span class="text-white">
+                {% for genre in top_genres %}{{ genre }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            </span>
+        </p>
+        {% else %}
+        <p class="text-muted fs-5">Система проанализировала ваши оценки и подобрала эти фильмы</p>
+        {% endif %}
     </div>
 
     {% if movies %}

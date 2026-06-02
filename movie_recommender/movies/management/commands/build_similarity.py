@@ -1,117 +1,224 @@
-"""
-Генерирует матрицу похожести фильмов на основе:
-  - общих жанров (вес 0.6)
-  - близости рейтинга (вес 0.2)
-  - близости года выхода (вес 0.2)
-
-Результат: { movie_id: [sim_id1, sim_id2, ...] } (топ-10 похожих)
-Сохраняется в ml_weights/movie_similarities.pkl
-
-Использование:
-    python manage.py build_similarity
-    python manage.py build_similarity --top 8    # топ-8 вместо 10
-    python manage.py build_similarity --min-rating 6.0
-"""
-import os
-import pickle
 import time
+import numpy as np
 from django.core.management.base import BaseCommand
-from django.conf import settings
-from movies.models import Movie
+from movies.models import Movie, MovieSimilarity, Genre, Actor, MovieCredit
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.preprocessing import MinMaxScaler
+
+
+def jaccard_similarity_matrix(binary_matrix):
+    """
+    Вычисляет матрицу схожести Жаккара для бинарной матрицы признаков.
+    Жаккар(A, B) = |A ∩ B| / |A ∪ B| = dot(a,b) / (|a| + |b| - dot(a,b))
+    """
+    intersection = binary_matrix @ binary_matrix.T
+    row_sums = binary_matrix.sum(axis=1)
+    union = row_sums[:, None] + row_sums[None, :] - intersection
+    with np.errstate(invalid='ignore', divide='ignore'):
+        sim = np.where(union == 0, 0.0, intersection / union)
+    return sim
 
 
 class Command(BaseCommand):
-    help = 'Строит матрицу похожести фильмов и сохраняет в ml_weights/movie_similarities.pkl'
+    help = 'Комплексный расчет матрицы схожести фильмов с учетом весов различных признаков'
 
-    def add_arguments(self, parser):
-        parser.add_argument('--top',        type=int,   default=10,  help='Сколько похожих хранить (default 10)')
-        parser.add_argument('--min-rating', type=float, default=6.0, help='Минимальный рейтинг (default 6.0)')
-        parser.add_argument('--chunk',      type=int,   default=500, help='Размер батча (default 500)')
+    def _step(self, label):
+        """Печатает метку шага и возвращает время начала."""
+        self.stdout.write(f'  → {label}...', ending=' ')
+        self.stdout.flush()
+        return time.time()
+
+    def _done(self, t0, extra=''):
+        elapsed = time.time() - t0
+        suffix = f'  {extra}' if extra else ''
+        self.stdout.write(self.style.SUCCESS(f'готово ({elapsed:.1f}с){suffix}'))
 
     def handle(self, *args, **options):
-        top        = options['top']
-        min_rating = options['min_rating']
-        chunk      = options['chunk']
+        total_start = time.time()
 
-        self.stdout.write('Загружаем фильмы...')
-        movies = list(
-            Movie.objects.filter(
-                poster_url__isnull=False,
-                rating__gte=min_rating,
-            ).exclude(poster_url='')
-            .prefetch_related('genres')
+        self.stdout.write(self.style.MIGRATE_HEADING('\n=== Построение матрицы схожести фильмов ==='))
+
+        # ------------------------------------------------------------------
+        # 0. Загрузка данных
+        # ------------------------------------------------------------------
+        self.stdout.write('\n[1/7] Загрузка данных из базы')
+        t = self._step('фильмы')
+        movies = list(Movie.objects.all())
+        if not movies:
+            self.stdout.write(self.style.WARNING('База фильмов пуста.'))
+            return
+        n_movies = len(movies)
+        movie_to_idx = {movie.id: idx for idx, movie in enumerate(movies)}
+        self._done(t, f'({n_movies} фильмов)')
+
+        # === ВЕСА ПРИЗНАКОВ (сумма = 1.0) ===
+        W_GENRES = 0.30   # Жаккар по жанрам
+        W_ACTORS = 0.20   # Косинус по актёрам
+        W_CREW   = 0.15   # Косинус по съёмочной группе
+        W_TAGS   = 0.20   # TF-IDF по описанию
+        W_RATING = 0.08   # Близость рейтингов
+        W_YEAR   = 0.07   # Близость по году
+
+        self.stdout.write(
+            f'     Веса: жанры={W_GENRES} | актёры={W_ACTORS} | группа={W_CREW} '
+            f'| теги={W_TAGS} | рейтинг={W_RATING} | год={W_YEAR}'
         )
-        self.stdout.write(f'Загружено: {len(movies)} фильмов')
 
-        # Строим словари для быстрого доступа
-        movie_genres = {}  # id -> set of genre ids
-        movie_rating = {}  # id -> rating
-        movie_year   = {}  # id -> year
+        # ------------------------------------------------------------------
+        # А) Жанры — коэффициент Жаккара
+        # ------------------------------------------------------------------
+        self.stdout.write('\n[2/7] Жанровая матрица (коэффициент Жаккара)')
+        t = self._step('загрузка жанров')
+        all_genres = list(Genre.objects.values_list('id', flat=True))
+        genre_to_idx = {g_id: i for i, g_id in enumerate(all_genres)}
+        genres_matrix = np.zeros((n_movies, len(all_genres)), dtype=np.float32)
+        for idx, movie in enumerate(movies):
+            for g_id in movie.genres.values_list('id', flat=True):
+                if g_id in genre_to_idx:
+                    genres_matrix[idx, genre_to_idx[g_id]] = 1.0
+        self._done(t, f'({len(all_genres)} жанров)')
 
-        for m in movies:
-            movie_genres[m.id] = set(m.genres.values_list('id', flat=True))
-            movie_rating[m.id] = float(m.rating or 0)
-            movie_year[m.id]   = m.release_date.year if m.release_date else 2000
+        t = self._step('расчёт Жаккара')
+        sim_genres = jaccard_similarity_matrix(genres_matrix)
+        self._done(t, f'(матрица {n_movies}×{n_movies})')
 
-        ids = [m.id for m in movies]
-        n   = len(ids)
+        # ------------------------------------------------------------------
+        # Б) Актёры — косинусное сходство
+        # ------------------------------------------------------------------
+        self.stdout.write('\n[3/7] Матрица актёров (косинусное сходство)')
+        t = self._step('загрузка актёров')
+        all_actors = list(Actor.objects.values_list('id', flat=True))
+        actor_to_idx = {a_id: i for i, a_id in enumerate(all_actors)}
+        actors_matrix = np.zeros((n_movies, len(all_actors)), dtype=np.float32)
+        for idx, movie in enumerate(movies):
+            for a_id in movie.actors.values_list('id', flat=True):
+                if a_id in actor_to_idx:
+                    actors_matrix[idx, actor_to_idx[a_id]] = 1.0
+        self._done(t, f'({len(all_actors)} актёров)')
 
-        # Нормализация года для сравнения
-        min_year = min(movie_year.values()) if movie_year else 1900
-        max_year = max(movie_year.values()) if movie_year else 2025
-        year_range = max(max_year - min_year, 1)
+        t = self._step('расчёт косинуса')
+        if actors_matrix.shape[1] == 0:
+            sim_actors = np.zeros((n_movies, n_movies), dtype=np.float32)
+            self._done(t, '(нет данных → пропуск)')
+        else:
+            sim_actors = cosine_similarity(actors_matrix)
+            self._done(t)
 
-        similarity_matrix = {}
-        t0 = time.time()
+        # ------------------------------------------------------------------
+        # В) Съёмочная группа — косинусное сходство
+        # ------------------------------------------------------------------
+        self.stdout.write('\n[4/7] Матрица съёмочной группы (косинусное сходство)')
+        t = self._step('загрузка MovieCredit')
+        all_crew_persons = list(MovieCredit.objects.values_list('person_id', flat=True).distinct())
+        crew_to_idx = {p_id: i for i, p_id in enumerate(all_crew_persons)}
+        crew_matrix = np.zeros((n_movies, len(all_crew_persons)), dtype=np.float32)
+        credits = list(MovieCredit.objects.all())
+        for credit in credits:
+            if credit.movie_id in movie_to_idx and credit.person_id in crew_to_idx:
+                crew_matrix[movie_to_idx[credit.movie_id], crew_to_idx[credit.person_id]] = 1.0
+        self._done(t, f'({len(all_crew_persons)} человек, {len(credits)} записей)')
 
-        self.stdout.write(f'Строим матрицу похожести ({n}x{n})...')
+        t = self._step('расчёт косинуса')
+        if crew_matrix.shape[1] == 0:
+            sim_crew = np.zeros((n_movies, n_movies), dtype=np.float32)
+            self._done(t, '(нет данных → пропуск)')
+        else:
+            sim_crew = cosine_similarity(crew_matrix)
+            self._done(t)
 
-        for i in range(0, n, chunk):
-            batch = ids[i:i + chunk]
-            for aid in batch:
-                genres_a = movie_genres[aid]
-                rating_a = movie_rating[aid]
-                year_a   = movie_year[aid]
-                scores   = []
+        # ------------------------------------------------------------------
+        # Г) Теги из описания — TF-IDF
+        # ------------------------------------------------------------------
+        self.stdout.write('\n[5/7] Текстовые теги из описания (TF-IDF)')
+        t = self._step('векторизация')
+        descriptions = [m.description if m.description else '' for m in movies]
+        non_empty = sum(1 for d in descriptions if d)
+        russian_stop_words = [
+            'и', 'в', 'во', 'что', 'он', 'на', 'я', 'with', 'с', 'со', 'как', 'а', 'то', 'все', 'она',
+            'так', 'его', 'но', 'да', 'ты', 'к', 'у', 'же', 'вы', 'за', 'бы', 'по', 'только',
+            'ее', 'мне', 'было', 'вот', 'от', 'меня', 'еще', 'о', 'из', 'ему', 'теперь', 'когда',
+            'даже', 'вдруг', 'ли', 'если', 'уже', 'или', 'ни', 'быть', 'был', 'него', 'до', 'вас',
+        ]
+        tfidf = TfidfVectorizer(max_features=400, stop_words=russian_stop_words)
+        tfidf_matrix = tfidf.fit_transform(descriptions)
+        self._done(t, f'({non_empty} описаний, {tfidf_matrix.shape[1]} признаков)')
 
-                for bid in ids:
-                    if bid == aid:
-                        continue
-                    genres_b = movie_genres[bid]
+        t = self._step('расчёт косинуса')
+        sim_tags = cosine_similarity(tfidf_matrix)
+        self._done(t)
 
-                    # 1. Жанровое сходство (Jaccard)
-                    union     = genres_a | genres_b
-                    intersect = genres_a & genres_b
-                    genre_sim = len(intersect) / len(union) if union else 0
+        # ------------------------------------------------------------------
+        # Д) Рейтинг и год
+        # ------------------------------------------------------------------
+        self.stdout.write('\n[6/7] Близость по рейтингу и году выпуска')
+        t = self._step('нормализация')
+        ratings = np.array([m.rating for m in movies], dtype=np.float32).reshape(-1, 1)
+        years = np.array(
+            [m.release_date.year if m.release_date else 2000 for m in movies],
+            dtype=np.float32,
+        ).reshape(-1, 1)
+        scaler = MinMaxScaler()
+        norm_ratings = scaler.fit_transform(ratings)
+        norm_years = scaler.fit_transform(years)
 
-                    # 2. Близость рейтинга (1 - нормализованная разница)
-                    rating_sim = 1.0 - min(abs(rating_a - movie_rating[bid]) / 4.0, 1.0)
+        sim_rating = np.zeros((n_movies, n_movies), dtype=np.float32)
+        sim_year = np.zeros((n_movies, n_movies), dtype=np.float32)
+        for i in range(n_movies):
+            sim_rating[i] = 1.0 - np.abs(norm_ratings - norm_ratings[i]).flatten()
+            sim_year[i] = 1.0 - np.abs(norm_years - norm_years[i]).flatten()
+        self._done(t)
 
-                    # 3. Близость года
-                    year_sim = 1.0 - abs(year_a - movie_year[bid]) / year_range
+        # ------------------------------------------------------------------
+        # Е) Агрегация
+        # ------------------------------------------------------------------
+        self.stdout.write('\n[7/7] Агрегация и сохранение в базу данных')
+        t = self._step('объединение матриц')
+        np.nan_to_num(sim_genres, copy=False)
+        np.nan_to_num(sim_actors, copy=False)
+        np.nan_to_num(sim_crew, copy=False)
+        np.nan_to_num(sim_tags, copy=False)
+        final = (
+            W_GENRES * sim_genres +
+            W_ACTORS * sim_actors +
+            W_CREW   * sim_crew   +
+            W_TAGS   * sim_tags   +
+            W_RATING * sim_rating +
+            W_YEAR   * sim_year
+        )
+        self._done(t)
 
-                    score = genre_sim * 0.6 + rating_sim * 0.2 + year_sim * 0.2
-                    scores.append((bid, score))
+        t = self._step('удаление старых записей')
+        deleted, _ = MovieSimilarity.objects.all().delete()
+        self._done(t, f'(удалено {deleted})')
 
-                scores.sort(key=lambda x: -x[1])
-                similarity_matrix[aid] = [sid for sid, _ in scores[:top]]
+        t = self._step('формирование новых записей')
+        similarity_objects = []
+        for i in range(n_movies):
+            similar_indices = np.argsort(final[i])[::-1]
+            count = 0
+            for idx in similar_indices:
+                if idx == i:
+                    continue
+                if count >= 10:
+                    break
+                similarity_objects.append(MovieSimilarity(
+                    first_movie=movies[i],
+                    second_movie=movies[idx],
+                    score=float(final[i][idx]),
+                ))
+                count += 1
+            if (i + 1) % 500 == 0 or (i + 1) == n_movies:
+                self.stdout.write(f'\r  → формирование новых записей... {i + 1}/{n_movies}', ending=' ')
+                self.stdout.flush()
+        self._done(t, f'({len(similarity_objects)} пар)')
 
-            done = min(i + chunk, n)
-            elapsed = time.time() - t0
-            eta = elapsed / done * (n - done) if done > 0 else 0
-            self.stdout.write(
-                f'  {done}/{n}  ({100*done//n}%)  '
-                f'прошло: {elapsed:.0f}s  осталось: ~{eta:.0f}s'
-            )
+        t = self._step('запись в БД (bulk_create)')
+        MovieSimilarity.objects.bulk_create(similarity_objects, batch_size=5000)
+        self._done(t)
 
-        out_path = os.path.join(settings.BASE_DIR, 'ml_weights', 'movie_similarities.pkl')
-        os.makedirs(os.path.dirname(out_path), exist_ok=True)
-        with open(out_path, 'wb') as f:
-            pickle.dump(similarity_matrix, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-        elapsed = time.time() - t0
+        total = time.time() - total_start
         self.stdout.write(self.style.SUCCESS(
-            f'\nГОТОВО за {elapsed:.1f}s\n'
-            f'Фильмов: {len(similarity_matrix)}\n'
-            f'Сохранено в: {out_path}\n'
+            f'\n✓ Готово! Матрица схожести обновлена за {total:.1f}с. '
+            f'Записей в БД: {len(similarity_objects)}'
         ))

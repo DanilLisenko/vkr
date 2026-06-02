@@ -1,21 +1,19 @@
 import os
 from pathlib import Path
+from decouple import config, Csv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
+# ------------------------------------------------------------------ #
+# Безопасность                                                         #
+# ------------------------------------------------------------------ #
+SECRET_KEY = config('SECRET_KEY', default='django-insecure-pn)%g0i6z!lo&^rn-zwhi^%nyv6r4@&li2u42ueifgdo(heu96')
+DEBUG = config('DEBUG', default=True, cast=bool)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-pn)%g0i6z!lo&^rn-zwhi^%nyv6r4@&li2u42ueifgdo(heu96"
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-# Application definition
+# ------------------------------------------------------------------ #
+# Приложения                                                           #
+# ------------------------------------------------------------------ #
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -29,16 +27,16 @@ INSTALLED_APPS = [
     'django_extensions',
 ]
 
-
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",          # статика в продакшене
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "movie_recommender.middleware.BlockUserMiddleware",  # Добавляем middleware
+    "movie_recommender.middleware.BlockUserMiddleware",
 ]
 
 ROOT_URLCONF = "movie_recommender.urls"
@@ -61,81 +59,103 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "movie_recommender.wsgi.application"
 
-# Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'movie_recommend',
-        'USER': 'postgres',
-        'PASSWORD': '1105',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+# ------------------------------------------------------------------ #
+# База данных                                                          #
+# ------------------------------------------------------------------ #
+DATABASE_URL = config('DATABASE_URL', default=None)
 
-# Password validation
+if DATABASE_URL:
+    # Railway / любой хостинг передаёт DATABASE_URL
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600)
+    }
+else:
+    # Локальная разработка
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME', default='movie_recommend'),
+            'USER': config('DB_USER', default='postgres'),
+            'PASSWORD': config('DB_PASSWORD', default='1105'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
+    }
+
+# ------------------------------------------------------------------ #
+# Валидация паролей                                                    #
+# ------------------------------------------------------------------ #
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
-    },
-    {
-        "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-# Internationalization
+# ------------------------------------------------------------------ #
+# Локализация                                                          #
+# ------------------------------------------------------------------ #
 LANGUAGE_CODE = 'ru'
 TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# ------------------------------------------------------------------ #
+# Статические файлы                                                    #
+# ------------------------------------------------------------------ #
 STATIC_URL = '/static/'
-STATICFILES_DIRS = []  # Удаляем movies/static/, так как AppDirectoriesFinder уже обрабатывает эту директорию
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
+STATICFILES_DIRS = []
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
-
-# Default primary key field type
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-CSRF_FAILURE_VIEW = 'movie_recommender.views.csrf_failure'
-
-AUTH_USER_MODEL = 'users.CustomUser'
-
-LOGIN_URL = '/users/login/'
-LOGIN_REDIRECT_URL = '/users/profile/'
-LOGOUT_REDIRECT_URL = '/'
+# WhiteNoise — сжатие и кэширование статики
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
 
-TMDB_API_KEY = '8bf31002475b2fd4bc514cd9d272c4e5'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# ------------------------------------------------------------------ #
+# Аутентификация                                                       #
+# ------------------------------------------------------------------ #
+AUTH_USER_MODEL = 'users.CustomUser'
+LOGIN_URL = '/users/login/'
+LOGIN_REDIRECT_URL = '/users/profile/'
+LOGOUT_REDIRECT_URL = '/'
+CSRF_FAILURE_VIEW = 'movie_recommender.views.csrf_failure'
+
+# ------------------------------------------------------------------ #
+# API ключи                                                            #
+# ------------------------------------------------------------------ #
+TMDB_API_KEY = config('TMDB_API_KEY', default='8bf31002475b2fd4bc514cd9d272c4e5')
+
+# ------------------------------------------------------------------ #
+# Кэш                                                                  #
+# ------------------------------------------------------------------ #
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'movierecommender-cache',
         'OPTIONS': {
-            'MAX_ENTRIES': 2000,       # держим до 2000 объектов в памяти
-            'CULL_FREQUENCY': 4,       # при переполнении удаляем 1/4
+            'MAX_ENTRIES': 2000,
+            'CULL_FREQUENCY': 4,
         }
     }
 }
 
-# Сессии в памяти — быстрее чем в БД
 SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
+
+# ------------------------------------------------------------------ #
+# Логирование                                                          #
+# ------------------------------------------------------------------ #
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
 
 LOGGING = {
     'version': 1,
@@ -144,7 +164,7 @@ LOGGING = {
         'file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': 'logs/admin_actions.log',
+            'filename': str(LOGS_DIR / 'admin_actions.log'),
         },
     },
     'loggers': {
@@ -155,6 +175,3 @@ LOGGING = {
         },
     },
 }
-
-
-AUTH_USER_MODEL = 'users.CustomUser'

@@ -1,5 +1,7 @@
 import re
+from urllib.parse import quote
 from django import template
+from django.urls import reverse
 
 register = template.Library()
 
@@ -27,6 +29,20 @@ def lookup(d, key):
     if isinstance(d, dict):
         return d.get(key, '')
     return ''
+
+
+@register.filter
+def proxy_poster(url):
+    """
+    Заменяет прямой URL постера TMDB на прокси-URL через собственный сервер.
+    Использование в шаблоне: {{ movie.poster_url|proxy_poster }}
+    """
+    if not url:
+        return ''
+    url = str(url)
+    if 'image.tmdb.org' in url:
+        return '/movies/img/?url=' + quote(url, safe='')
+    return url
 
 
 @register.filter

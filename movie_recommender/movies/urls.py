@@ -32,4 +32,7 @@ urlpatterns = [
     path('admin-dashboard/block/<int:user_id>/', views.block_user, name='block_user'),
     path('admin-dashboard/unblock/<int:user_id>/', views.unblock_user, name='unblock_user'),
     path('admin-dashboard/delete-review/<int:review_id>/', views.delete_review, name='delete_review'),
+
+    # Прокси для TMDB-изображений (обход блокировок)
+    path('img/', views.proxy_image, name='proxy_image'),
 ]

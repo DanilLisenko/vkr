@@ -1,6 +1,6 @@
 import os
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from .models import Movie, Watchlist, Review, Actor, Genre , MovieCredit, SearchHistory, MovieSimilarity
@@ -792,3 +792,34 @@ def search_actors(request):
         {'id': a.id, 'name': a.name, 'photo_url': a.photo_url or ''}
         for a in actors
     ]})
+
+
+def proxy_image(request):
+    """
+    Проксирует изображения с image.tmdb.org через сервер Railway.
+    Нужно для пользователей из РФ, где домен может быть заблокирован.
+    Использование: /movies/img/?url=https://image.tmdb.org/...
+    """
+    url = request.GET.get('url', '').strip()
+
+    # Разрешаем только TMDB-изображения — защита от open redirect
+    ALLOWED_HOSTS = ('image.tmdb.org', 'www.themoviedb.org')
+    if not url:
+        return HttpResponse(status=400)
+    try:
+        from urllib.parse import urlparse
+        host = urlparse(url).netloc
+        if host not in ALLOWED_HOSTS:
+            return HttpResponse(status=403)
+    except Exception:
+        return HttpResponse(status=400)
+
+    try:
+        resp = requests.get(url, timeout=8, stream=True)
+        content_type = resp.headers.get('Content-Type', 'image/jpeg')
+        response = HttpResponse(resp.content, content_type=content_type)
+        # Кэшируем на 7 дней — постеры не меняются
+        response['Cache-Control'] = 'public, max-age=604800'
+        return response
+    except Exception:
+        return HttpResponse(status=502)

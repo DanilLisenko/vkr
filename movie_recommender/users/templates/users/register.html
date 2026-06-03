@@ -295,8 +295,17 @@
             <div class="mb-3"><label>Email</label>{{ form.email }}</div>
             <div class="mb-3">
                 <label>Дата рождения</label>
-                {{ form.birth_date }}
-                <small class="text-muted" style="font-size:.78rem;">Нажмите на поле — откроется календарь</small>
+                <div class="position-relative">
+                    {{ form.birth_date }}
+                    <!-- Скрытый нативный datepicker, открывается по клику на иконку -->
+                    <input type="date" id="id_birth_date_picker"
+                           style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;right:0;">
+                    <button type="button" onclick="document.getElementById('id_birth_date_picker').showPicker()"
+                            tabindex="-1"
+                            style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.45);cursor:pointer;padding:0;line-height:1;">
+                        <i class="fa-regular fa-calendar"></i>
+                    </button>
+                </div>
             </div>
             <div class="mb-3">
                 <label>Пароль *</label>
@@ -390,6 +399,42 @@ let lastPoster = '';
 let isLoadingMore = false;
 let pickerInitialized = false;
 const COLS = window.innerWidth > 900 ? 7 : window.innerWidth > 560 ? 5 : 3;
+
+/* ══════════ МАСКА ДАТЫ ДД.ММ.ГГГГ ══════════════════ */
+(function() {
+    var inp = document.getElementById('id_birth_date');
+    var picker = document.getElementById('id_birth_date_picker');
+    if (!inp) return;
+
+    inp.addEventListener('input', function(e) {
+        var v = inp.value.replace(/\D/g, '');       // только цифры
+        var out = '';
+        if (v.length > 0)  out += v.substring(0, 2);
+        if (v.length >= 3) out += '.' + v.substring(2, 4);
+        if (v.length >= 5) out += '.' + v.substring(4, 8);
+        inp.value = out;
+    });
+
+    inp.addEventListener('keydown', function(e) {
+        // Разрешаем: Backspace, Delete, Tab, стрелки, Ctrl+A/C/V/X
+        if ([8,9,46,37,38,39,40].indexOf(e.keyCode) !== -1) return;
+        if (e.ctrlKey || e.metaKey) return;
+        // Блокируем не-цифры
+        if (e.key < '0' || e.key > '9') e.preventDefault();
+    });
+
+    // Когда пользователь выбирает дату из нативного календаря
+    if (picker) {
+        picker.addEventListener('change', function() {
+            var d = new Date(picker.value);
+            if (isNaN(d)) return;
+            var dd   = String(d.getDate()).padStart(2, '0');
+            var mm   = String(d.getMonth() + 1).padStart(2, '0');
+            var yyyy = d.getFullYear();
+            inp.value = dd + '.' + mm + '.' + yyyy;
+        });
+    }
+})();
 
 /* ══════════ ПОКАЗАТЬ/СКРЫТЬ ПАРОЛЬ ═════════════════ */
 function togglePwd(id, btn) {

@@ -100,6 +100,8 @@ LANGUAGE_CODE = 'ru'
 TIME_ZONE = 'Europe/Moscow'
 USE_I18N = True
 USE_L10N = True
+# Форматы дат принимаемые Django (ДД.ММ.ГГГГ + ISO)
+DATE_INPUT_FORMATS = ['%d.%m.%Y', '%Y-%m-%d', '%d/%m/%Y']
 USE_TZ = True
 
 # ------------------------------------------------------------------ #

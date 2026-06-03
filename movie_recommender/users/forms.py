@@ -13,12 +13,18 @@ class CustomUserCreationForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.update(INPUT_ATTRS)
-        # Дата рождения — type="date" для нативного календаря
-        self.fields['birth_date'].widget = forms.DateInput(
-            attrs={**INPUT_ATTRS, 'type': 'date', 'id': 'id_birth_date'},
-            format='%Y-%m-%d',
+        # Дата рождения — текстовое поле с маской ДД.ММ.ГГГГ
+        self.fields['birth_date'].widget = forms.TextInput(
+            attrs={
+                **INPUT_ATTRS,
+                'id': 'id_birth_date',
+                'placeholder': 'ДД.ММ.ГГГГ',
+                'maxlength': '10',
+                'autocomplete': 'off',
+            }
         )
         self.fields['birth_date'].required = False
+        self.fields['birth_date'].input_formats = ['%d.%m.%Y', '%Y-%m-%d']
 
 class CustomUserChangeForm(UserChangeForm):
     password = None

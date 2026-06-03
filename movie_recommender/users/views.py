@@ -1,4 +1,11 @@
+﻿from urllib.parse import quote as _url_quote
 from django.shortcuts import render, redirect, get_object_or_404
+
+
+def _proxy_url(url):
+    if url and 'image.tmdb.org' in url:
+        return '/movies/img/?url=' + _url_quote(url, safe='')
+    return url or ''
 from django.views.generic import CreateView, UpdateView, TemplateView, DetailView
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -182,7 +189,7 @@ def similar_movies_api(request):
         {
             'id': m.id,
             'title': m.title,
-            'poster_url': m.poster_url,
+            'poster_url': _proxy_url(m.poster_url),
             'rating': round(m.rating, 1),
             'year': m.release_date.year if m.release_date else '',
         }

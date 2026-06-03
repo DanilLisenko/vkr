@@ -1,6 +1,14 @@
-import os
+﻿import os
+from urllib.parse import quote as _url_quote
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponse
+
+
+def _proxy_url(url):
+    """Оборачивает TMDB-изображение в серверный прокси /movies/img/?url=..."""
+    if url and 'image.tmdb.org' in url:
+        return '/movies/img/?url=' + _url_quote(url, safe='')
+    return url or ''
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from .models import Movie, Watchlist, Review, Actor, Genre , MovieCredit, SearchHistory, MovieSimilarity
@@ -64,12 +72,12 @@ def search(request):
 
     return JsonResponse({
         'movies': [
-            {'id': m.id, 'title': m.title, 'poster_url': m.poster_url,
+            {'id': m.id, 'title': m.title, 'poster_url': _proxy_url(m.poster_url),
              'rating': round(m.rating or 0, 1)}
             for m in movies
         ],
         'actors': [
-            {'id': a.id, 'name': a.name, 'photo_url': a.photo_url or ''}
+            {'id': a.id, 'name': a.name, 'photo_url': _proxy_url(a.photo_url)}
             for a in actors
         ],
     })
@@ -750,7 +758,7 @@ def mindmap_initial_api(request):
             'id': m.id,
             'title': m.title,
             'rating': round(m.rating or 0, 1),
-            'poster_url': m.poster_url,
+            'poster_url': _proxy_url(m.poster_url),
             'year': m.release_date.year if m.release_date else '',
         }
         for m in movies
@@ -800,7 +808,7 @@ def mindmap_similar_api(request, movie_id):
             'id': m.id,
             'title': m.title,
             'rating': round(m.rating or 0, 1),
-            'poster_url': m.poster_url,
+            'poster_url': _proxy_url(m.poster_url),
             'year': m.release_date.year if m.release_date else '',
         }
         for m in movies
@@ -820,7 +828,7 @@ def search_actors(request):
         return JsonResponse({'actors': []})
     actors = Actor.objects.filter(name__icontains=query)[:8]
     return JsonResponse({'actors': [
-        {'id': a.id, 'name': a.name, 'photo_url': a.photo_url or ''}
+        {'id': a.id, 'name': a.name, 'photo_url': _proxy_url(a.photo_url)}
         for a in actors
     ]})
 

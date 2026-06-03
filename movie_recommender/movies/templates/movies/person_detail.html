@@ -1,4 +1,5 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
+{% load movie_tags %}
 {% load custom_filters %}
 
 {% block title %}{{ person.name }} | MovieRecommender{% endblock %}
@@ -52,7 +53,7 @@
                 <a href="{% url 'movies:movie_detail' credit.movie.id %}" class="text-decoration-none">
                     <div class="movie-card">
                         <div class="poster-wrapper">
-                            <img src="{{ credit.movie.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="movie-poster" alt="{{ credit.movie.title }}">
+                            <img src="{{ credit.movie.poster_url|proxy_poster|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="movie-poster" alt="{{ credit.movie.title }}">
                             <div class="rating-badge"><i class="fa-solid fa-star me-1 text-warning"></i>{{ credit.movie.rating|floatformat:1 }}</div>
                         </div>
                         <div class="movie-info pb-3">

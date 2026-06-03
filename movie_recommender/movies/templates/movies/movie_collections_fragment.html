@@ -1,9 +1,9 @@
-{% if load_more == 'top' %}
+﻿{% if load_more == 'top' %}
     <div class="row" id="top-movies">
         {% for movie in top_movies %}
             <div class="col-md-3 mb-3">
                 <div class="card shadow-sm">
-                    <img src="{{ movie.poster_url }}" class="card-img-top" alt="{{ movie.title }}">
+                    <img src="{{ movie.poster_url|proxy_poster }}" class="card-img-top" alt="{{ movie.title }}">
                     <div class="card-body">
                         <h6 class="card-title">{{ movie.title }}</h6>
                         <a href="{% url 'movies:movie_detail' movie.id %}" class="btn btn-sm btn-outline-secondary">Подробнее</a>
@@ -23,7 +23,7 @@
             {% for movie in data.movies %}
                 <div class="col-md-3 mb-3">
                     <div class="card shadow-sm">
-                        <img src="{{ movie.poster_url }}" class="card-img-top" alt="{{ movie.title }}">
+                        <img src="{{ movie.poster_url|proxy_poster }}" class="card-img-top" alt="{{ movie.title }}">
                         <div class="card-body">
                             <h6 class="card-title">{{ movie.title }}</h6>
                             <a href="{% url 'movies:movie_detail' movie.id %}" class="btn btn-sm btn-outline-secondary">Подробнее</a>

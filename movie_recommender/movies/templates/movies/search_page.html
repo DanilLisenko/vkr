@@ -1,4 +1,4 @@
-<!-- movies/templates/movies/search_page.html -->
+﻿<!-- movies/templates/movies/search_page.html -->
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Поиск{% endblock %}
@@ -137,6 +137,12 @@
 {% block extra_js %}
 <script src="{% static 'js/search.js' %}"></script>
 <script>
+    // Прокси TMDB-изображений через сервер (для пользователей с блокировками)
+    function proxyImg(url) {
+        if (!url) return '';
+        if (url.indexOf('image.tmdb.org') !== -1) return '/movies/img/?url=' + encodeURIComponent(url);
+        return url;
+    }
 document.addEventListener("DOMContentLoaded", function() {
     const searchForm = document.getElementById('search-form');
     const searchInput = document.getElementById('search-input');
@@ -270,7 +276,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                     <div class="col-md-3 mb-3 movie-item">
                                         <div class="card h-100">
                                             <a href="/movies/${movie.id}/">
-                                                <img src="${movie.poster_url}" class="card-img-top" alt="${movie.title}">
+                                                <img src="${proxyImg(movie.poster_url)}" class="card-img-top" alt="${movie.title}">
                                             </a>
                                             <div class="card-body">
                                                 <h5 class="card-title">

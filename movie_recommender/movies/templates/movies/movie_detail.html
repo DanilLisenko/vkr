@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% load movie_tags %}
 
 {% block title %}{{ movie.title }} | MovieRecommender{% endblock %}
@@ -132,7 +132,7 @@
         <div class="row g-4">
             <!-- Постер -->
             <div class="col-md-3 col-lg-2">
-                <img src="{{ movie.poster_url|default:'https://via.placeholder.com/300x450/1a1b22/ffffff?text=Нет+постера' }}"
+                <img src="{{ movie.poster_url|proxy_poster|default:'https://via.placeholder.com/300x450/1a1b22/ffffff?text=Нет+постера' }}"
                      class="img-fluid rounded-3 w-100" alt="{{ movie.title }}"
                      style="aspect-ratio:2/3;object-fit:cover;">
             </div>
@@ -333,7 +333,7 @@
             <a href="{% url 'movies:movie_detail' sim.id %}" class="text-decoration-none">
                 <div class="movie-card">
                     <div class="poster-wrapper">
-                        <img src="{{ sim.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=?' }}" class="movie-poster" alt="{{ sim.title }}">
+                        <img src="{{ sim.poster_url|proxy_poster|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=?' }}" class="movie-poster" alt="{{ sim.title }}">
                         <div class="rating-badge"><i class="fa-solid fa-star me-1 text-warning"></i>{{ sim.rating|floatformat:1 }}</div>
                     </div>
                     <div class="movie-info">

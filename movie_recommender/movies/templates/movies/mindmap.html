@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load static %}
 
 {% block title %}Карта связей фильмов | MovieRecommender{% endblock %}
@@ -178,6 +178,12 @@
 
 {% block extra_js %}
 <script>
+    // Прокси TMDB-изображений через сервер (для пользователей с блокировками)
+    function proxyImg(url) {
+        if (!url) return '';
+        if (url.indexOf('image.tmdb.org') !== -1) return '/movies/img/?url=' + encodeURIComponent(url);
+        return url;
+    }
 const shownIds      = new Set();
 const panel         = document.getElementById('info-panel');
 const grid          = document.getElementById('mm-grid');
@@ -197,11 +203,11 @@ function makeCard(movie, isSimilar) {
     d.className = 'mm-card' + (isSimilar ? ' sim-new' : '');
     d.dataset.id     = movie.id;
     d.dataset.title  = movie.title;
-    d.dataset.poster = movie.poster_url || '';
+    d.dataset.poster = proxyImg(movie.poster_url || '');
     d.dataset.rating = movie.rating || 0;
     d.dataset.year   = movie.year   || '';
     d.innerHTML =
-        `<img src="${movie.poster_url||''}" alt=""
+        `<img src="${proxyImg(movie.poster_url)}" alt=""
               loading="lazy"
               onerror="this.src='https://via.placeholder.com/120x180/1a1b22/555?text=?'">
          <div class="mm-card-title">${movie.title}</div>`;
@@ -219,7 +225,7 @@ function onCardClick(cardEl, movie) {
     activeNode = movie;
 
     /* Обновить панель */
-    document.getElementById('panel-poster').src          = movie.poster_url || '';
+    document.getElementById('panel-poster').src = proxyImg(movie.poster_url || '');
     document.getElementById('panel-title').textContent   = movie.title;
     document.getElementById('panel-meta').innerHTML =
         `<i class="fa-solid fa-star text-warning me-1"></i>${(+movie.rating||0).toFixed(1)}`

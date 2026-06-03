@@ -1,4 +1,5 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
+{% load movie_tags %}
 {% load static %}
 
 {% block title %}Персональная подборка ИИ{% endblock %}
@@ -143,7 +144,7 @@
                 <div class="swiper-wrapper">
                     {% for movie in movies %}
                     <div class="swiper-slide">
-                        <img src="{{ movie.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="slide-poster" alt="{{ movie.title }}">
+                        <img src="{{ movie.poster_url|proxy_poster|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="slide-poster" alt="{{ movie.title }}">
                         <div class="slide-rating">
                             <i class="fa-solid fa-star text-warning"></i> {{ movie.rating|floatformat:1 }}
                         </div>

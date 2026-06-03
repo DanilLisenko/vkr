@@ -1,5 +1,6 @@
-<!-- movies/templates/movies/movie_list.html -->
+﻿<!-- movies/templates/movies/movie_list.html -->
 {% extends 'base.html' %}
+{% load movie_tags %}
 
 {% block title %}Список фильмов{% endblock %}
 
@@ -10,7 +11,7 @@
         <div class="col-md-4 mb-4" data-aos="fade-up" data-aos-delay="{{ forloop.counter|add:'100' }}">
             <div class="card">
                 <a href="{% url 'movies:movie_detail' movie.id %}">
-                    <img src="{{ movie.poster_url }}" class="card-img-top" alt="{{ movie.title }}">
+                    <img src="{{ movie.poster_url|proxy_poster }}" class="card-img-top" alt="{{ movie.title }}">
                 </a>
                 <div class="card-body">
                     <h5 class="card-title">

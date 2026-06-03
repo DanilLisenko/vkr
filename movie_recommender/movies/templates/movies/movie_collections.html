@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% load movie_tags %}
 
 {% block title %}Подборки фильмов | MovieRecommender{% endblock %}
@@ -121,7 +121,7 @@
             <div class="collections-scroll">
                 {% for movie in section.movies %}
                 <a href="{% url 'movies:movie_detail' movie.id %}" class="coll-card">
-                    <img src="{{ movie.poster_url }}" alt="{{ movie.title }}"
+                    <img src="{{ movie.poster_url|proxy_poster }}" alt="{{ movie.title }}"
                          onerror="this.src='https://via.placeholder.com/150x225/1a1b22/ffffff?text=?'">
                     <div class="coll-info">
                         <div class="coll-title">{{ movie.title }}</div>

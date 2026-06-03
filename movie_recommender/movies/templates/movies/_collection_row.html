@@ -1,4 +1,4 @@
-<div class="section-mb">
+﻿<div class="section-mb">
     <div class="section-hdr">
         <span><i class="fa-solid {{ icon }} me-2 {{ icon_color }}"></i>{{ title }}</span>
         {% if slug %}
@@ -8,7 +8,7 @@
     <div class="collections-scroll">
         {% for movie in movies %}
         <a href="{% url 'movies:movie_detail' movie.id %}" class="coll-card">
-            <img src="{{ movie.poster_url }}" alt="{{ movie.title }}"
+            <img src="{{ movie.poster_url|proxy_poster }}" alt="{{ movie.title }}"
                  onerror="this.src='https://via.placeholder.com/150x225/1a1b22/ffffff?text=?'">
             <div class="coll-info">
                 <div class="coll-title">{{ movie.title }}</div>

@@ -300,21 +300,52 @@ def movie_detail(request, movie_id):
 
 @login_required
 def add_to_watchlist(request, movie_id):
+    """
+    Переключает статус «Буду смотреть»:
+    - нет записи → добавить (watched=False)
+    - есть, watched=False → удалить (убрать из списка)
+    - есть, watched=True → перевести обратно в «отложенные» (watched=False)
+    """
     movie = get_object_or_404(Movie, id=movie_id)
-    item, created = Watchlist.objects.get_or_create(user=request.user, movie=movie)
-    if created:
-        item.watched = False
-        item.save()
-    return JsonResponse({'status': 'ok', 'in_watchlist': True})
+    try:
+        item = Watchlist.objects.get(user=request.user, movie=movie)
+        if item.watched:
+            # Было «просмотрено» → переводим в «отложено»
+            item.watched = False
+            item.save()
+            return JsonResponse({'in_watchlist': True, 'is_watched': False})
+        else:
+            # Уже в «отложенных» → убираем совсем
+            item.delete()
+            return JsonResponse({'in_watchlist': False, 'is_watched': False})
+    except Watchlist.DoesNotExist:
+        Watchlist.objects.create(user=request.user, movie=movie, watched=False)
+        return JsonResponse({'in_watchlist': True, 'is_watched': False})
 
 
 @login_required
 def mark_as_watched(request, movie_id):
+    """
+    Переключает статус «Просмотрено»:
+    - нет записи → создать (watched=True)
+    - есть, watched=False → перевести в watched=True
+    - есть, watched=True → убрать совсем (отменить отметку)
+    """
     movie = get_object_or_404(Movie, id=movie_id)
-    item, _ = Watchlist.objects.get_or_create(user=request.user, movie=movie)
-    item.watched = True
-    item.save()
-    return JsonResponse({'status': 'ok', 'is_watched': True})
+    try:
+        item = Watchlist.objects.get(user=request.user, movie=movie)
+        if item.watched:
+            # Уже «просмотрено» → убираем совсем
+            item.delete()
+            return JsonResponse({'in_watchlist': False, 'is_watched': False})
+        else:
+            # Было «отложено» → переводим в «просмотрено»
+            item.watched = True
+            item.save()
+            return JsonResponse({'in_watchlist': False, 'is_watched': True})
+    except Watchlist.DoesNotExist:
+        Watchlist.objects.create(user=request.user, movie=movie, watched=True)
+        return JsonResponse({'in_watchlist': False, 'is_watched': True})
 
 
 def get_similar_movies(movie, limit=10):

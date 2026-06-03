@@ -455,23 +455,32 @@ document.addEventListener('DOMContentLoaded', function() {
     var btnWatchlist = document.getElementById('btn-watchlist');
     var btnWatched   = document.getElementById('btn-watched');
 
+    // Синхронизирует состояние обеих кнопок по ответу сервера
+    function syncButtons(data) {
+        var lblW  = document.getElementById('watchlist-label');
+        var lblWd = document.getElementById('watched-label');
+
+        if (btnWatchlist) {
+            btnWatchlist.classList.toggle('active', !!data.in_watchlist);
+            if (lblW) lblW.textContent = data.in_watchlist ? 'В списке' : 'Буду смотреть';
+        }
+        if (btnWatched) {
+            btnWatched.classList.toggle('active', !!data.is_watched);
+            if (lblWd) lblWd.textContent = data.is_watched ? 'Просмотрено' : 'Отметить просмотренным';
+        }
+    }
+
     if (btnWatchlist) {
         btnWatchlist.addEventListener('click', function() {
-            postAction('/movies/' + this.dataset.movieId + '/add_to_watchlist/', function() {
-                btnWatchlist.classList.add('active');
-                var lbl = document.getElementById('watchlist-label');
-                if (lbl) lbl.textContent = 'В списке';
-            });
+            var movieId = this.dataset.movieId;
+            postAction('/movies/' + movieId + '/add_to_watchlist/', syncButtons);
         });
     }
 
     if (btnWatched) {
         btnWatched.addEventListener('click', function() {
-            postAction('/movies/' + this.dataset.movieId + '/mark_as_watched/', function() {
-                btnWatched.classList.add('active');
-                var lbl = document.getElementById('watched-label');
-                if (lbl) lbl.textContent = 'Просмотрено';
-            });
+            var movieId = this.dataset.movieId;
+            postAction('/movies/' + movieId + '/mark_as_watched/', syncButtons);
         });
     }
 });

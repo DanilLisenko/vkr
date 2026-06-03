@@ -293,13 +293,32 @@
                 {% if form.username.errors %}<ul class="errorlist">{% for e in form.username.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
             </div>
             <div class="mb-3"><label>Email</label>{{ form.email }}</div>
-            <div class="mb-3"><label>Дата рождения</label>{{ form.birth_date }}</div>
             <div class="mb-3">
-                <label>Пароль *</label>{{ form.password1 }}
+                <label>Дата рождения</label>
+                {{ form.birth_date }}
+                <small class="text-muted" style="font-size:.78rem;">Нажмите на поле — откроется календарь</small>
+            </div>
+            <div class="mb-3">
+                <label>Пароль *</label>
+                <div class="position-relative">
+                    {{ form.password1 }}
+                    <button type="button" onclick="togglePwd('id_password1',this)" tabindex="-1"
+                        style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;padding:0;">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
+                </div>
                 {% if form.password1.errors %}<ul class="errorlist">{% for e in form.password1.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+                <small class="text-muted" style="font-size:.78rem;">Минимум 8 символов, не только цифры</small>
             </div>
             <div class="mb-4">
-                <label>Повторите пароль *</label>{{ form.password2 }}
+                <label>Повторите пароль *</label>
+                <div class="position-relative">
+                    {{ form.password2 }}
+                    <button type="button" onclick="togglePwd('id_password2',this)" tabindex="-1"
+                        style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,0.4);cursor:pointer;padding:0;">
+                        <i class="fa-regular fa-eye"></i>
+                    </button>
+                </div>
                 {% if form.password2.errors %}<ul class="errorlist">{% for e in form.password2.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
             </div>
             {% if form.non_field_errors %}
@@ -372,8 +391,72 @@ let isLoadingMore = false;
 let pickerInitialized = false;
 const COLS = window.innerWidth > 900 ? 7 : window.innerWidth > 560 ? 5 : 3;
 
+/* ══════════ ПОКАЗАТЬ/СКРЫТЬ ПАРОЛЬ ═════════════════ */
+function togglePwd(id, btn) {
+    const inp = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    if (inp.type === 'password') {
+        inp.type = 'text';
+        icon.className = 'fa-regular fa-eye-slash';
+    } else {
+        inp.type = 'password';
+        icon.className = 'fa-regular fa-eye';
+    }
+}
+
 /* ══════════ ШАГИ 1 / 2 ══════════════════════════════ */
 function goStep(n) {
+    // При переходе на шаг 2 — валидируем пароли на клиенте
+    if (n === 2) {
+        const p1 = document.getElementById('id_password1');
+        const p2 = document.getElementById('id_password2');
+        if (!p1 || !p1.value) {
+            p1 && p1.focus();
+            showStepError('Введите пароль');
+            return;
+        }
+        if (p1.value.length < 8) {
+            showStepError('Пароль должен быть не менее 8 символов');
+            p1.focus();
+            return;
+        }
+        if (p1.value !== p2.value) {
+            showStepError('Пароли не совпадают');
+            p2 && p2.focus();
+            return;
+        }
+        clearStepError();
+    }
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    const el = document.getElementById('step-' + n);
+    if (el) el.classList.add('active');
+    document.querySelectorAll('.step-dot').forEach((d, i) => d.classList.toggle('active', i < n));
+}
+
+function showStepError(msg) {
+    let el = document.getElementById('step1-client-error');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'step1-client-error';
+        el.className = 'alert alert-danger py-2 px-3 mb-3';
+        el.style.cssText = 'border-radius:10px;font-size:.9rem;';
+        const btn = document.querySelector('#step-1 .btn-auth');
+        btn.parentNode.insertBefore(el, btn);
+    }
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+function clearStepError() {
+    const el = document.getElementById('step1-client-error');
+    if (el) el.style.display = 'none';
+}
+
+// Если сервер вернул ошибки — показать шаг 1
+document.addEventListener('DOMContentLoaded', function() {
+    const hasErrors = document.querySelectorAll('.errorlist li, .alert-danger').length > 0;
+    if (hasErrors) goStepForce(1);
+});
+function goStepForce(n) {
     document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
     const el = document.getElementById('step-' + n);
     if (el) el.classList.add('active');

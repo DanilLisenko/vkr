@@ -13,6 +13,12 @@ class CustomUserCreationForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.update(INPUT_ATTRS)
+        # Дата рождения — type="date" для нативного календаря
+        self.fields['birth_date'].widget = forms.DateInput(
+            attrs={**INPUT_ATTRS, 'type': 'date', 'id': 'id_birth_date'},
+            format='%Y-%m-%d',
+        )
+        self.fields['birth_date'].required = False
 
 class CustomUserChangeForm(UserChangeForm):
     password = None

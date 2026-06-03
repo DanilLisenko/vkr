@@ -8,7 +8,7 @@
     <div class="row g-5 align-items-center">
         <div class="col-md-4 col-lg-3">
             {% if actor.photo_url %}
-                <img src="{{ actor.photo_url }}" class="img-fluid rounded-4 shadow-lg w-100" alt="{{ actor.name }}" style="object-fit: cover; border: 1px solid rgba(255,255,255,0.1);">
+                <img src="{{ actor.photo_url|proxy_poster }}" class="img-fluid rounded-4 shadow-lg w-100" alt="{{ actor.name }}" style="object-fit: cover; border: 1px solid rgba(255,255,255,0.1);">
             {% else %}
                 <div class="rounded-4 bg-dark d-flex align-items-center justify-content-center shadow-lg w-100" style="aspect-ratio: 2/3; border: 1px solid rgba(255,255,255,0.05);">
                     <i class="fa-solid fa-user text-muted" style="font-size: 4rem;"></i>

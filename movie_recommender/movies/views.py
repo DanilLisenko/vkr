@@ -549,7 +549,7 @@ def load_more_actors(request):
         {
             'id': actor.id,
             'name': actor.name,
-            'photo_url': actor.photo_url or 'https://via.placeholder.com/200x300',
+            'photo_url': _proxy_url(actor.photo_url) or 'https://via.placeholder.com/200x300',
             'birth_date': actor.birth_date.strftime('%d.%m.%Y') if actor.birth_date else 'Дата рождения неизвестна',
             'detail_url': request.build_absolute_uri(reverse('movies:actor_detail', args=[actor.id]))
         }

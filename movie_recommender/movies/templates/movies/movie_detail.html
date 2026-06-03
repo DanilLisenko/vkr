@@ -251,7 +251,7 @@
         <a href="{% url 'movies:person_detail' credit.person.id %}" class="text-decoration-none">
             <div class="person-card">
                 {% if credit.person.photo_url %}
-                    <img src="{{ credit.person.photo_url }}" alt="{{ credit.person.name }}">
+                    <img src="{{ credit.person.photo_url|proxy_poster }}" alt="{{ credit.person.name }}">
                 {% else %}
                     <div style="width:120px;height:160px;background:#25262e;display:flex;align-items:center;justify-content:center;">
                         <i class="fa-solid fa-user text-muted fs-3"></i>
@@ -272,7 +272,7 @@
         <a href="{% url 'movies:actor_detail' actor.id %}" class="text-decoration-none">
             <div class="person-card">
                 {% if actor.photo_url %}
-                    <img src="{{ actor.photo_url }}" alt="{{ actor.name }}">
+                    <img src="{{ actor.photo_url|proxy_poster }}" alt="{{ actor.name }}">
                 {% else %}
                     <div style="width:120px;height:160px;background:#25262e;display:flex;align-items:center;justify-content:center;">
                         <i class="fa-solid fa-user text-muted fs-3"></i>

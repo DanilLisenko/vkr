@@ -181,7 +181,7 @@
     // Прокси TMDB-изображений через сервер (для пользователей с блокировками)
     function proxyImg(url) {
         if (!url) return '';
-        if (url.indexOf('image.tmdb.org') !== -1) return '/movies/img/?url=' + encodeURIComponent(url);
+        if (url.indexOf('image.tmdb.org') !== -1) { var c=url.replace('https://','').replace('http://',''); return 'https://wsrv.nl/?url='+c+'&default=1'; }
         return url;
     }
 const shownIds      = new Set();

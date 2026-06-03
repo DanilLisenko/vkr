@@ -4,7 +4,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 def _proxy_url(url):
     if url and 'image.tmdb.org' in url:
-        return '/movies/img/?url=' + _url_quote(url, safe='')
+        clean = url.replace('https://', '').replace('http://', '')
+        return f'https://wsrv.nl/?url={clean}&default=1'
     return url or ''
 from django.views.generic import CreateView, UpdateView, TemplateView, DetailView
 from django.contrib.auth.views import LoginView, LogoutView

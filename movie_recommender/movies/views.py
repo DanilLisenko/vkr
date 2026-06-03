@@ -5,9 +5,10 @@ from django.http import JsonResponse, HttpResponse
 
 
 def _proxy_url(url):
-    """Оборачивает TMDB-изображение в серверный прокси /movies/img/?url=..."""
+    """Проксирует TMDB-изображения через wsrv.nl (глобальный CDN, доступен из РФ)."""
     if url and 'image.tmdb.org' in url:
-        return '/movies/img/?url=' + _url_quote(url, safe='')
+        clean = url.replace('https://', '').replace('http://', '')
+        return f'https://wsrv.nl/?url={clean}&default=1'
     return url or ''
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages

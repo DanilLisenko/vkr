@@ -170,6 +170,14 @@
 
         .hero-title { font-size: 3.5rem; font-weight: 800; margin-bottom: 20px; }
         .hero-subtitle { color: var(--text-muted); font-size: 1.25rem; max-width: 600px; margin: 0 auto 40px auto; }
+        @media (max-width: 576px) {
+            .hero-title { font-size: 1.75rem; }
+            .hero-subtitle { font-size: 1rem; }
+            .hero-section { padding: 80px 0 50px 0; }
+        }
+        @media (max-width: 768px) and (min-width: 577px) {
+            .hero-title { font-size: 2.4rem; }
+        }
 
         .btn-primary { background-color: var(--accent-color); border: none; font-weight: 600; border-radius: 8px; }
         .btn-primary:hover { background-color: #b80710; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(229, 9, 20, 0.3); }
@@ -341,7 +349,7 @@
         <section class="hero-section">
             <div class="container">
                 <h1 class="hero-title">Персональный подбор фильмов</h1>
-                <p class="hero-subtitle">Интеллектуальная система на базе глубоких нейросетей подберет идеальное кино под ваше настроение.</p>
+                <p class="hero-subtitle">Система на основе матрицы схожести подберёт фильмы под ваши вкусы.</p>
                 <a href="{% url 'movies:recommend_movie' %}" class="btn btn-primary btn-lg px-5 py-3"><i class="fa-solid fa-brain me-2"></i> Подобрать фильм</a>
             </div>
         </section>

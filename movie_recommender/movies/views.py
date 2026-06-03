@@ -846,7 +846,14 @@ def proxy_image(request):
         return HttpResponse(status=400)
 
     try:
-        resp = requests.get(url, timeout=8, stream=True)
+        resp = requests.get(
+            url,
+            timeout=8,
+            stream=True,
+            headers={'User-Agent': 'Mozilla/5.0 (compatible; MovieRecommender/1.0)'},
+        )
+        if resp.status_code != 200:
+            return HttpResponse(status=resp.status_code)
         content_type = resp.headers.get('Content-Type', 'image/jpeg')
         response = HttpResponse(resp.content, content_type=content_type)
         # Кэшируем на 7 дней — постеры не меняются

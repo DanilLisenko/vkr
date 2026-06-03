@@ -1,4 +1,5 @@
-﻿{% if load_more == 'top' %}
+﻿{% load movie_tags %}
+{% if load_more == 'top' %}
     <div class="row" id="top-movies">
         {% for movie in top_movies %}
             <div class="col-md-3 mb-3">

@@ -1,4 +1,4 @@
-{% load static %}
+{% load static %}{% load movie_tags %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -368,7 +368,7 @@
                     <a href="{% url 'movies:movie_detail' movie.id %}" class="text-decoration-none">
                         <div class="movie-card">
                             <div class="poster-wrapper">
-                                <img src="{{ movie.poster_url|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="movie-poster" alt="{{ movie.title }}">
+                                <img src="{{ movie.poster_url|proxy_poster|default:'https://via.placeholder.com/500x750/1a1b22/ffffff?text=Нет+постера' }}" class="movie-poster" alt="{{ movie.title }}">
                                 <div class="rating-badge"><i class="fa-solid fa-star me-1"></i>{{ movie.rating|floatformat:1 }}</div>
                             </div>
                             <div class="movie-info">
@@ -397,7 +397,7 @@
                     <a href="{% url 'movies:movie_detail' movie.id %}" class="text-decoration-none">
                         <div class="movie-card">
                             <div class="poster-wrapper">
-                                <img src="{{ movie.poster_url }}" class="movie-poster" alt="{{ movie.title }}"
+                                <img src="{{ movie.poster_url|proxy_poster }}" class="movie-poster" alt="{{ movie.title }}"
                                      onerror="this.src='https://via.placeholder.com/500x750/1a1b22/ffffff?text=?'">
                                 <div class="rating-badge"><i class="fa-solid fa-star me-1"></i>{{ movie.rating|floatformat:1 }}</div>
                             </div>

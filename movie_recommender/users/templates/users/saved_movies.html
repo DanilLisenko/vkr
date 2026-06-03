@@ -1,4 +1,5 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
+{% load movie_tags %}
 
 {% block title %}Избранное | MovieRecommender{% endblock %}
 
@@ -36,7 +37,7 @@
         <div class="scroll-row">
             {% for item in watchlist %}
             <a href="{% url 'movies:movie_detail' item.movie.id %}" class="mini-movie-card text-decoration-none">
-                <img src="{{ item.movie.poster_url|default:'https://via.placeholder.com/130x195/1a1b22/ffffff?text=?' }}" alt="{{ item.movie.title }}">
+                <img src="{{ item.movie.poster_url|proxy_poster|default:'https://via.placeholder.com/130x195/1a1b22/ffffff?text=?' }}" alt="{{ item.movie.title }}">
                 <div class="p-2">
                     <div class="text-white" style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ item.movie.title }}</div>
                     <div class="text-muted" style="font-size:0.75rem;">{{ item.movie.release_date|date:"Y" }}</div>
@@ -55,7 +56,7 @@
         <div class="scroll-row">
             {% for item in watched %}
             <a href="{% url 'movies:movie_detail' item.movie.id %}" class="mini-movie-card text-decoration-none">
-                <img src="{{ item.movie.poster_url|default:'https://via.placeholder.com/130x195/1a1b22/ffffff?text=?' }}" alt="{{ item.movie.title }}">
+                <img src="{{ item.movie.poster_url|proxy_poster|default:'https://via.placeholder.com/130x195/1a1b22/ffffff?text=?' }}" alt="{{ item.movie.title }}">
                 <div class="p-2">
                     <div class="text-white" style="font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ item.movie.title }}</div>
                     <div class="text-muted" style="font-size:0.75rem;">{{ item.movie.release_date|date:"Y" }}</div>

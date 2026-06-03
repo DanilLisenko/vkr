@@ -187,8 +187,8 @@
             <!-- Превью трейлера: thumbnail + кнопка воспроизведения -->
             <div id="trailer-preview" style="position:relative;border-radius:14px;overflow:hidden;background:#000;width:100%;cursor:pointer;" onclick="playTrailer()">
                 <img id="trailer-thumb"
-                     src="https://wsrv.nl/?url=i.ytimg.com/vi/{{ trailers.0.key }}/maxresdefault.jpg&default=1"
-                     onerror="this.src='https://wsrv.nl/?url=i.ytimg.com/vi/{{ trailers.0.key }}/hqdefault.jpg&default=1'"
+                     src="/movies/img/?url=https%3A%2F%2Fi.ytimg.com%2Fvi%2F{{ trailers.0.key }}%2Fmaxresdefault.jpg"
+                     onerror="this.src='/movies/img/?url=https%3A%2F%2Fi.ytimg.com%2Fvi%2F{{ trailers.0.key }}%2Fhqdefault.jpg'"
                      style="width:100%;display:block;aspect-ratio:16/9;object-fit:cover;">
                 <!-- Затемнение -->
                 <div style="position:absolute;inset:0;background:rgba(0,0,0,0.35);"></div>
@@ -453,7 +453,7 @@ function switchTrailer(btn) {
     var thumb = document.getElementById('trailer-thumb');
     var titleEl = document.getElementById('trailer-preview-title');
     if (preview && preview.style.display !== 'none') {
-        if (thumb) thumb.src = 'https://wsrv.nl/?url=i.ytimg.com/vi/' + key + '/maxresdefault.jpg&default=1';
+        if (thumb) thumb.src = '/movies/img/?url=' + encodeURIComponent('https://i.ytimg.com/vi/' + key + '/maxresdefault.jpg');
         if (titleEl) titleEl.textContent = btn.dataset.name || '';
     }
 

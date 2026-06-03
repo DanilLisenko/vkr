@@ -5,10 +5,9 @@ from django.http import JsonResponse, HttpResponse
 
 
 def _proxy_url(url):
-    """Проксирует TMDB-изображения через wsrv.nl (глобальный CDN, доступен из РФ)."""
+    """Проксирует TMDB-изображения через Railway (/movies/img/)."""
     if url and 'image.tmdb.org' in url:
-        clean = url.replace('https://', '').replace('http://', '')
-        return f'https://wsrv.nl/?url={clean}&default=1'
+        return '/movies/img/?url=' + _url_quote(url, safe='')
     return url or ''
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -843,7 +842,7 @@ def proxy_image(request):
     url = request.GET.get('url', '').strip()
 
     # Разрешаем только TMDB-изображения — защита от open redirect
-    ALLOWED_HOSTS = ('image.tmdb.org', 'www.themoviedb.org')
+    ALLOWED_HOSTS = ('image.tmdb.org', 'www.themoviedb.org', 'i.ytimg.com', 'img.youtube.com')
     if not url:
         return HttpResponse(status=400)
     try:

@@ -34,17 +34,15 @@ def lookup(d, key):
 @register.filter
 def proxy_poster(url):
     """
-    Проксирует TMDB-изображения через wsrv.nl — глобальный CDN,
-    доступный из России без VPN.
-    Использование в шаблоне: {{ movie.poster_url|proxy_poster }}
+    Проксирует TMDB-изображения через собственный сервер Railway.
+    Браузер запрашивает /movies/img/?url=... с нашего домена,
+    Railway (ЕС) скачивает с image.tmdb.org и отдаёт пользователю.
     """
     if not url:
         return ''
     url = str(url)
     if 'image.tmdb.org' in url:
-        # wsrv.nl принимает URL без схемы: ?url=image.tmdb.org/...
-        clean = url.replace('https://', '').replace('http://', '')
-        return f'https://wsrv.nl/?url={clean}&default=1'
+        return '/movies/img/?url=' + quote(url, safe='')
     return url
 
 

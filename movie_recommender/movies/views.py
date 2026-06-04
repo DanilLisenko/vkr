@@ -854,15 +854,17 @@ def proxy_image(request):
     try:
         resp = requests.get(
             url,
-            timeout=8,
-            stream=True,
-            headers={'User-Agent': 'Mozilla/5.0 (compatible; MovieRecommender/1.0)'},
+            timeout=10,
+            headers={
+                'User-Agent': 'Mozilla/5.0 (compatible; MovieRecommender/1.0)',
+                'Referer': 'https://www.themoviedb.org/',
+            },
         )
         if resp.status_code != 200:
             return HttpResponse(status=resp.status_code)
         content_type = resp.headers.get('Content-Type', 'image/jpeg')
         response = HttpResponse(resp.content, content_type=content_type)
-        # Кэшируем на 7 дней — постеры не меняются
+        # Кэш на 7 дней — постеры не меняются
         response['Cache-Control'] = 'public, max-age=604800'
         return response
     except Exception:

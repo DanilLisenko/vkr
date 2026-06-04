@@ -7,22 +7,48 @@
     <title>{% block title %}Movie Recommender{% endblock %}</title>
     <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');</script>
     <!-- Автоматический прокси для TMDB-изображений:
-         грузится напрямую (быстро), при ошибке переключается на Railway-прокси.
-         Работает только для пользователей у которых image.tmdb.org недоступен. -->
+         грузится напрямую (быстро для всех), при ошибке — через Railway.
+         Очередь ограничена 6 одновременными запросами чтобы не перегружать сервер. -->
     <script>
-    document.addEventListener('error', function(e) {
-        var img = e.target;
-        if (img.tagName !== 'IMG') return;
-        var src = img.getAttribute('src') || '';
-        if (src.indexOf('image.tmdb.org') !== -1) {
-            img.removeEventListener('error', arguments.callee);
-            img.src = '/movies/img/?url=' + encodeURIComponent(src);
+    (function() {
+        var MAX_CONCURRENT = 6;   // не больше 6 прокси-запросов одновременно
+        var active = 0;
+        var queue = [];
+
+        function runNext() {
+            if (active >= MAX_CONCURRENT || queue.length === 0) return;
+            var img = queue.shift();
+            // Проверяем что картинка ещё нужна (не удалена из DOM)
+            if (!img.parentNode) { runNext(); return; }
+            active++;
+            var original = img.dataset.tmdbSrc;
+            var proxy = '/movies/img/?url=' + encodeURIComponent(original);
+            img.onerror = function() {
+                img.onerror = null;
+                active--;
+                runNext();
+            };
+            img.onload = function() {
+                img.onload = null;
+                active--;
+                runNext();
+            };
+            img.src = proxy;
         }
-    }, true);
-    // То же для динамически созданных изображений в JS
-    window._tmdbProxy = function(url) {
-        return url || '';  // JS рендерит напрямую, onerror сработает при ошибке
-    };
+
+        document.addEventListener('error', function(e) {
+            var img = e.target;
+            if (img.tagName !== 'IMG') return;
+            var src = img.getAttribute('src') || '';
+            // Только TMDB, только первый раз (не зацикливаться)
+            if (src.indexOf('image.tmdb.org') === -1) return;
+            if (img.dataset.tmdbSrc) return;          // уже в очереди
+            img.dataset.tmdbSrc = src;
+            img.onerror = null;
+            queue.push(img);
+            runNext();
+        }, true);
+    })();
     </script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">

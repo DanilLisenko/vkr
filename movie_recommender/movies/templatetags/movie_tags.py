@@ -34,16 +34,11 @@ def lookup(d, key):
 @register.filter
 def proxy_poster(url):
     """
-    Проксирует TMDB-изображения через собственный сервер Railway.
-    Браузер запрашивает /movies/img/?url=... с нашего домена,
-    Railway (ЕС) скачивает с image.tmdb.org и отдаёт пользователю.
+    Возвращает оригинальный URL без изменений.
+    Проксирование обрабатывается глобально в JS через onerror-обработчик
+    в base.html — только для пользователей у которых TMDB недоступен.
     """
-    if not url:
-        return ''
-    url = str(url)
-    if 'image.tmdb.org' in url:
-        return '/movies/img/?url=' + quote(url, safe='')
-    return url
+    return url or ''
 
 
 @register.filter

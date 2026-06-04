@@ -138,7 +138,7 @@
 <script src="{% static 'js/search.js' %}"></script>
 <script>
     // Прокси TMDB-изображений через сервер (для пользователей с блокировками)
-    function proxyImg(url) {
+    function url {
         if (!url) return '';
         if (url.indexOf('image.tmdb.org') !== -1) return '/movies/img/?url=' + encodeURIComponent(url);
         return url;
@@ -276,7 +276,7 @@ document.addEventListener("DOMContentLoaded", function() {
                                     <div class="col-md-3 mb-3 movie-item">
                                         <div class="card h-100">
                                             <a href="/movies/${movie.id}/">
-                                                <img src="${proxyImg(movie.poster_url)}" class="card-img-top" alt="${movie.title}">
+                                                <img src="${movie.poster_url}" class="card-img-top" alt="${movie.title}">
                                             </a>
                                             <div class="card-body">
                                                 <h5 class="card-title">

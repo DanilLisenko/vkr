@@ -5,9 +5,7 @@ from django.http import JsonResponse, HttpResponse
 
 
 def _proxy_url(url):
-    """Проксирует TMDB-изображения через Railway (/movies/img/)."""
-    if url and 'image.tmdb.org' in url:
-        return '/movies/img/?url=' + _url_quote(url, safe='')
+    """Возвращает URL без изменений — прокси обрабатывается JS onerror."""
     return url or ''
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages

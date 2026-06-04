@@ -86,11 +86,6 @@
 
 {% block extra_js %}
 <script>
-function proxyImg(url) {
-    if (!url) return '';
-    if (url.indexOf('image.tmdb.org') !== -1) return '/movies/img/?url=' + encodeURIComponent(url);
-    return url;
-}
 document.addEventListener('DOMContentLoaded', () => {
     const loadMoreBtn = document.getElementById('load-more-btn');
     if (loadMoreBtn) {
@@ -119,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <a href="${actor.detail_url}" class="text-decoration-none">
                                 <div class="actor-card">
                                     <div class="actor-photo-wrapper">
-                                        <img src="${proxyImg(actor.photo_url)}" class="actor-photo" alt="${actor.name}"
+                                        <img src="${actor.photo_url}" class="actor-photo" alt="${actor.name}"
                                              onerror="this.outerHTML='<div class=\\'w-100 h-100 d-flex align-items-center justify-content-center bg-dark text-muted\\'><i class=\\'fa-solid fa-user fs-1\\'></i></div>'">
                                     </div>
                                     <h5 class="fw-bold text-white mb-1 px-3 text-truncate">${actor.name}</h5>

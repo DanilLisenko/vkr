@@ -3,9 +3,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 
 
 def _proxy_url(url):
-    if url and 'image.tmdb.org' in url:
-        from urllib.parse import quote
-        return '/movies/img/?url=' + quote(url, safe='')
+    """Возвращает URL без изменений — прокси обрабатывается JS onerror."""
     return url or ''
 from django.views.generic import CreateView, UpdateView, TemplateView, DetailView
 from django.contrib.auth.views import LoginView, LogoutView

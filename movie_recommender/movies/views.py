@@ -735,7 +735,7 @@ def delete_review(request, review_id):
 
 
 def mindmap_page(request):
-    """Интерактивная карта ИИ-связей между фильмами."""
+    """Интерактивная карта связей между фильмами."""
     initial = Movie.objects.filter(
         rating__gte=7.0,
         poster_url__isnull=False,

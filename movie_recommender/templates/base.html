@@ -6,6 +6,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Movie Recommender{% endblock %}</title>
     <script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');</script>
+    <style>
+        #page-loader {
+            position: fixed; inset: 0; z-index: 99999;
+            background: var(--bg-color, #0f1014);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 20px;
+            transition: opacity .35s ease, visibility .35s ease;
+        }
+        #page-loader.hidden { opacity: 0; visibility: hidden; }
+        .loader-logo {
+            font-size: 1.6rem; font-weight: 800; color: #fff; letter-spacing: -0.5px;
+        }
+        .loader-logo span { color: #e50914; }
+        .loader-bar {
+            width: 160px; height: 3px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 999px; overflow: hidden;
+        }
+        .loader-bar::after {
+            content: '';
+            display: block; height: 100%;
+            width: 40%; background: #e50914;
+            border-radius: 999px;
+            animation: loader-slide 1s ease-in-out infinite alternate;
+        }
+        @keyframes loader-slide {
+            from { transform: translateX(-100%); }
+            to   { transform: translateX(300%); }
+        }
+    </style>
     <!-- Автоматический прокси для TMDB-изображений:
          грузится напрямую (быстро для всех), при ошибке — через Railway.
          Очередь ограничена 6 одновременными запросами чтобы не перегружать сервер. -->
@@ -332,6 +363,21 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+<div id="page-loader">
+    <div class="loader-logo">Movie<span>Recommender</span></div>
+    <div class="loader-bar"></div>
+</div>
+<script>
+window.addEventListener('load', function() {
+    var loader = document.getElementById('page-loader');
+    if (loader) loader.classList.add('hidden');
+});
+// Страховка: скрыть через 4 сек даже если load не сработал
+setTimeout(function() {
+    var loader = document.getElementById('page-loader');
+    if (loader) loader.classList.add('hidden');
+}, 4000);
+</script>
 
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container-fluid px-4">

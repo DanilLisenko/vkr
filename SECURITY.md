@@ -10,7 +10,7 @@
 
 Если вы обнаружили уязвимость в безопасности, пожалуйста, **не создавайте публичный issue**.
 
-Напишите на электронную почту: [danillisenko@example.com](mailto:danillisenko@example.com)
+Напишите на электронную почту: [danillisenko7@gmail.com](mailto:danillisenko7@gmail.com)
 
 В письме укажите:
 - Описание уязвимости

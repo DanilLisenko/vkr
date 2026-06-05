@@ -449,6 +449,69 @@ function togglePwd(id, btn) {
     }
 }
 
+/* ══════════ ЖИВАЯ ВАЛИДАЦИЯ ПОЛЕЙ ══════════════════ */
+(function() {
+    function hint(inputEl, msg, ok) {
+        var id = inputEl.id + '_hint';
+        var el = document.getElementById(id);
+        if (!el) {
+            el = document.createElement('small');
+            el.id = id;
+            el.style.cssText = 'display:block;font-size:.78rem;margin-top:4px;';
+            inputEl.parentNode.parentNode.appendChild(el);
+        }
+        el.textContent = msg;
+        el.style.color = ok ? '#34c759' : '#ff6b6b';
+        inputEl.style.borderColor = msg ? (ok ? 'rgba(52,199,89,.6)' : 'rgba(255,107,107,.6)') : '';
+    }
+
+    // Имя пользователя
+    var username = document.getElementById('id_username');
+    if (username) {
+        username.addEventListener('input', function() {
+            var v = this.value.trim();
+            if (!v) { hint(this, '', true); return; }
+            if (v.length < 3) hint(this, 'Минимум 3 символа', false);
+            else if (!/^[\w.@+-]+$/.test(v)) hint(this, 'Только буквы, цифры и @/./+/-/_', false);
+            else hint(this, '✓ Имя подходит', true);
+        });
+    }
+
+    // Email
+    var email = document.getElementById('id_email');
+    if (email) {
+        email.addEventListener('input', function() {
+            var v = this.value.trim();
+            if (!v) { hint(this, '', true); return; }
+            if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) hint(this, '✓ Email корректный', true);
+            else hint(this, 'Введите корректный email', false);
+        });
+    }
+
+    // Пароль
+    var p1 = document.getElementById('id_password1');
+    var p2 = document.getElementById('id_password2');
+    if (p1) {
+        p1.addEventListener('input', function() {
+            var v = this.value;
+            if (!v) { hint(this, '', true); return; }
+            if (v.length < 8) hint(this, 'Слишком короткий — нужно минимум 8 символов', false);
+            else if (/^\d+$/.test(v)) hint(this, 'Пароль не может состоять только из цифр', false);
+            else hint(this, '✓ Пароль подходит', true);
+            // Синхронно проверяем совпадение
+            if (p2 && p2.value) checkMatch();
+        });
+    }
+    if (p2) {
+        p2.addEventListener('input', checkMatch);
+    }
+    function checkMatch() {
+        if (!p1 || !p2 || !p2.value) return;
+        if (p1.value === p2.value) hint(p2, '✓ Пароли совпадают', true);
+        else hint(p2, 'Пароли не совпадают', false);
+    }
+})();
+
 /* ══════════ ШАГИ 1 / 2 ══════════════════════════════ */
 function goStep(n) {
     // При переходе на шаг 2 — валидируем пароли на клиенте

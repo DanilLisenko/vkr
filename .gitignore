@@ -3,6 +3,11 @@
 
 # Исключения: не игнорируем сам .gitignore и папку с проектом
 !.gitignore
+!README.md
+!LICENSE
+!SECURITY.md
+!CODE_OF_CONDUCT.md
+!CONTRIBUTING.md
 !movie_recommender/
 
 # Разрешаем Git заходить внутрь папки movie_recommender и видеть все файлы

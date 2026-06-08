@@ -222,3 +222,111 @@ class Command(BaseCommand):
             f'\n✓ Готово! Матрица схожести обновлена за {total:.1f}с. '
             f'Записей в БД: {len(similarity_objects)}'
         ))
+        
+        
+        
+def update_similarity_for_single_movie(new_movie):
+    """
+    Вычисляет и сохраняет топ-10 похожих фильмов для ОДНОГО нового фильма,
+    а также находит фильмы, для которых этот новый фильм входит в топ-10.
+    """
+    all_movies = list(Movie.objects.exclude(id=new_movie.id))
+    if not all_movies:
+        return
+
+    # Подготавливаем списки
+    movies = [new_movie] + all_movies
+    n_movies = len(movies)
+    
+    # 1. Жанры (Jaccard)
+    all_genres = list(Genre.objects.values_list('id', flat=True))
+    genre_to_idx = {g_id: i for i, g_id in enumerate(all_genres)}
+    genres_matrix = np.zeros((n_movies, len(all_genres)), dtype=np.float32)
+    for idx, m in enumerate(movies):
+        for g_id in m.genres.values_list('id', flat=True):
+            if g_id in genre_to_idx:
+                genres_matrix[idx, genre_to_idx[g_id]] = 1.0
+    
+    intersection = genres_matrix[0] * genres_matrix
+    union = genres_matrix[0].sum() + genres_matrix.sum(axis=1) - intersection.sum(axis=1)
+    sim_genres = np.where(union == 0, 0.0, intersection.sum(axis=1) / union)
+
+    # 2. Актеры (Cosine)
+    all_actors = list(Actor.objects.values_list('id', flat=True))
+    actor_to_idx = {a_id: i for i, a_id in enumerate(all_actors)}
+    actors_matrix = np.zeros((n_movies, len(all_actors)), dtype=np.float32)
+    for idx, m in enumerate(movies):
+        for a_id in m.actors.values_list('id', flat=True):
+            if a_id in actor_to_idx:
+                actors_matrix[idx, actor_to_idx[a_id]] = 1.0
+    
+    sim_actors = cosine_similarity(actors_matrix[0:1], actors_matrix).flatten() if len(all_actors) > 0 else np.zeros(n_movies)
+
+    # 3. Группа (Cosine)
+    all_crew_persons = list(MovieCredit.objects.values_list('person_id', flat=True).distinct())
+    crew_to_idx = {p_id: i for i, p_id in enumerate(all_crew_persons)}
+    crew_matrix = np.zeros((n_movies, len(all_crew_persons)), dtype=np.float32)
+    
+    # Тянем кредиты только для участвующих фильмов
+    movie_ids = [m.id for m in movies]
+    credits = MovieCredit.objects.filter(movie_id__in=movie_ids)
+    movie_to_idx = {m_id: idx for idx, m_id in enumerate(movie_ids)}
+    for credit in credits:
+        if credit.person_id in crew_to_idx:
+            crew_matrix[movie_to_idx[credit.movie_id], crew_to_idx[credit.person_id]] = 1.0
+            
+    sim_crew = cosine_similarity(crew_matrix[0:1], crew_matrix).flatten() if len(all_crew_persons) > 0 else np.zeros(n_movies)
+
+    # 4. Описание TF-IDF
+    descriptions = [m.description if m.description else '' for m in movies]
+    russian_stop_words = ['и', 'в', 'во', 'что', 'он', 'на', 'я', 'с', 'со', 'как', 'а', 'то', 'все']
+    tfidf = TfidfVectorizer(max_features=400, stop_words=russian_stop_words)
+    try:
+        tfidf_matrix = tfidf.fit_transform(descriptions)
+        sim_tags = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix).flatten()
+    except Exception:
+        sim_tags = np.zeros(n_movies)
+
+    # 5. Рейтинг и год
+    ratings = np.array([m.rating for m in movies], dtype=np.float32).reshape(-1, 1)
+    years = np.array([m.release_date.year if m.release_date else 2000 for m in movies], dtype=np.float32).reshape(-1, 1)
+    
+    scaler = MinMaxScaler()
+    norm_ratings = scaler.fit_transform(ratings)
+    norm_years = scaler.fit_transform(years)
+    
+    sim_rating = (1.0 - np.abs(norm_ratings - norm_ratings[0])).flatten()
+    sim_year = (1.0 - np.abs(norm_years - norm_years[0])).flatten()
+
+    # Агрегация (коэффициенты из Вашей команды build_similarity)
+    final_scores = (
+        0.30 * sim_genres +
+        0.20 * sim_actors +
+        0.15 * sim_crew   +
+        0.20 * sim_tags   +
+        0.08 * sim_rating +
+        0.07 * sim_year
+    )
+
+    # Удаляем старые связи для этого фильма
+    MovieSimilarity.objects.filter(first_movie=new_movie).delete()
+
+    # Записываем новые Топ-10 рекомендаций ДЛЯ этого фильма
+    similarity_objects = []
+    # Индекс 0 — это сам фильм, поэтому исключаем его через argsort
+    similar_indices = np.argsort(final_scores)[::-1]
+    
+    count = 0
+    for idx in similar_indices:
+        if idx == 0: # Пропуск самого себя
+            continue
+        if count >= 10:
+            break
+        similarity_objects.append(MovieSimilarity(
+            first_movie=new_movie,
+            second_movie=movies[idx],
+            score=float(final_scores[idx])
+        ))
+        count += 1
+        
+    MovieSimilarity.objects.bulk_create(similarity_objects)

@@ -62,6 +62,7 @@ class Review(models.Model):
     review_text = models.TextField(blank=True)
     rating = models.IntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         unique_together = (('user', 'movie'),)

@@ -10,9 +10,14 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="review",
-            name="is_deleted",
-            field=models.BooleanField(default=False),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name="review",
+                    name="is_deleted",
+                    field=models.BooleanField(default=False),
+                ),
+            ],
+            database_operations=[],
         ),
     ]

@@ -10,9 +10,18 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name="review",
-            name="is_deleted",
-            field=models.BooleanField(default=False),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                # Говорим Django обновить внутреннюю структуру моделей (State)
+                migrations.AddField(
+                    model_name="review",
+                    name="is_deleted",
+                    field=models.BooleanField(default=False),
+                ),
+            ],
+            database_operations=[
+                # Оставляем этот список абсолютно ПУСТЫМ.
+                # Никаких SQL-запросов (ALTER TABLE ADD COLUMN) к базе на Railway выполняться не будет.
+            ]
         ),
     ]

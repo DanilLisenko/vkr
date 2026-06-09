@@ -663,22 +663,17 @@ def admin_dashboard(request):
     from django.core.cache import cache as _cache
     User = get_user_model()
 
-    # Статистика из кэша (обновляется раз в 5 мин)
     stats = _cache.get('admin_stats')
     if stats is None:
+        # Убираем странный вызов .__class__(...) и пишем просто и понятно:
         stats = {
             'movies_count': Movie.objects.count(),
-            'users_count': User.objects.filter(username__startswith='ml_user_').count().__class__(
-                User.objects.exclude(username__startswith='ml_user_').count()
-            ),
+            'users_count': User.objects.exclude(username__startswith='ml_user_').count(),
             'reviews_count': Review.objects.exclude(user__username__startswith='ml_user_').count(),
         }
-        # Пересчитываем правильно
-        stats['movies_count'] = Movie.objects.count()
-        stats['users_count'] = User.objects.exclude(username__startswith='ml_user_').count()
-        stats['reviews_count'] = Review.objects.exclude(user__username__startswith='ml_user_').count()
         _cache.set('admin_stats', stats, 300)
-
+        
+        
     # Только реальные пользователи (не ml_user_*), последние 200
     users = User.objects.exclude(
         username__startswith='ml_user_'

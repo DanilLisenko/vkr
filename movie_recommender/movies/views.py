@@ -85,28 +85,41 @@ def search(request):
 def recommend_movie(request):
     """
     Формирование персональных рекомендаций на основе комплексного анализа профиля пользователя:
-    учитываются как добавления в списки (Watchlist), так и выставленные оценки (Review).
+    учитываются добавления в списки (Watchlist), выставленные оценки (Review) 
+    и фильмы, выбранные при регистрации (FavoriteMovie).
     """
-    # 1. Собираем все фильмы, с которыми пользователь уже взаимодействовал, чтобы не рекомендовать их повторенно
+    from users.models import FavoriteMovie  # Импортируем модель избранного с регистрации
+
+    # 1. Собираем все фильмы, с которыми пользователь уже взаимодействовал
     watched_ids = set(Watchlist.objects.filter(user=request.user).values_list('movie_id', flat=True))
     reviewed_ids = set(Review.objects.filter(user=request.user).values_list('movie_id', flat=True))
-    all_interacted_ids = watched_ids.union(reviewed_ids)
+    favorite_ids = set(FavoriteMovie.objects.filter(user=request.user).values_list('movie_id', flat=True))
+    
+    # Объединяем их, чтобы исключить из выдачи (не рекомендуем то, что пользователь уже видел/лайкнул)
+    all_interacted_ids = watched_ids.union(reviewed_ids).union(favorite_ids)
 
     # 2. Извлекаем отзывы пользователя (явная обратная связь)
     user_reviews = Review.objects.filter(user=request.user)
 
-    # Будем собирать «интересы» пользователя с весами
-    # Фильмы из Watchlist по умолчанию имеют базовый положительный вес (например, 1.0)
-    movie_weights = {m_id: 1.0 for m_id in watched_ids}
+    # Собираем «интересы» пользователя с весами
+    movie_weights = {}
 
-    # Корректируем веса на основе оценок из отзывов (у тебя рейтинг, судя по форме, обычно от 1 до 10 или 1 до 5)
-    # Допустим, шкала 1-10. Центрируем оценку относительно среднего значения (5.5)
+    # Добавляем фильмы, лайкнутые при регистрации (выставляем им высокий приоритет, например, 1.5)
+    for f_id in favorite_ids:
+        movie_weights[f_id] = 1.5
+
+    # Добавляем фильмы из Watchlist (базовый положительный вес 1.0)
+    for m_id in watched_ids:
+        if m_id not in movie_weights:
+            movie_weights[m_id] = 1.0
+
+    # Корректируем или перезаписываем веса на основе оценок из отзывов
     for review in user_reviews:
         rating_weight = review.rating - 5.5  # Если оценка 10, вес +4.5. Если оценка 1, вес -4.5
         movie_weights[review.movie_id] = rating_weight
 
+    # Если профиль абсолютно пуст (холодный старт без истории и без регистрации)
     if not movie_weights:
-        # Стратегия для «холодного старта» — если у пользователя нет истории
         recommended_movies = list(Movie.objects.filter(
             poster_url__isnull=False,
             rating__gte=7.5
@@ -116,11 +129,10 @@ def recommend_movie(request):
         return render(request, 'movies/recommend.html', context)
 
     # 3. Вычисляем итоговые кумулятивные баллы для кандидатов на рекомендацию
-    # Нам нужны строки матрицы схожести для фильмов, которые оценил пользователь
     similarity_records = MovieSimilarity.objects.filter(
         first_movie_id__in=movie_weights.keys()
     ).exclude(
-        second_movie_id__in=all_interacted_ids  # Исключаем уже просмотренное
+        second_movie_id__in=all_interacted_ids  # Исключаем уже просмотренное и лайкнутое
     ).select_related('second_movie')
 
     # Расчет взвешенной суммы схожести для каждого потенциального фильма
@@ -129,7 +141,7 @@ def recommend_movie(request):
         source_movie_id = record.first_movie_id
         candidate_id = record.second_movie_id
 
-        # Информационный вес исходного фильма (из отзывов/отложенного)
+        # Информационный вес исходного фильма (из отзывов/отложенного/избранного)
         user_weight = movie_weights.get(source_movie_id, 1.0)
 
         # Вклад текущего сопоставления = Схожесть объектов * Вес отношения пользователя к фильму
@@ -152,7 +164,7 @@ def recommend_movie(request):
     # Отбираем топ-10 лучших рекомендаций
     recommended_movies = [item['movie'] for item in sorted_candidates if item['total_score'] > 0][:10]
 
-    # Если из-за отрицательных отзывов набралось меньше 10 фильмов, добьем популярными
+    # Если рекомендаций по матрице схожести не хватило, добиваем популярными
     if len(recommended_movies) < 10:
         additional_count = 10 - len(recommended_movies)
         exclude_ids = all_interacted_ids.union({m.id for m in recommended_movies})
@@ -162,14 +174,13 @@ def recommend_movie(request):
         ).exclude(id__in=exclude_ids).order_by('-rating')[:additional_count]
         recommended_movies.extend(list(backup_movies))
 
-    # Определяем любимые жанры пользователя по положительным отзывам и watchlist
+    # Определяем любимые жанры пользователя для отображения (включая регистрационные)
     positive_movie_ids = [
         m_id for m_id, w in movie_weights.items() if w > 0
     ]
     from collections import Counter
     genre_counter = Counter()
     if positive_movie_ids:
-        from .models import Genre as GenreModel
         genre_rows = Movie.objects.filter(id__in=positive_movie_ids).values_list('genres__name', flat=True)
         for genre_name in genre_rows:
             if genre_name:
